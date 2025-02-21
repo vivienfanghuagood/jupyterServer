@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jupyter Launcher</title>
+  <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
+</head>
+<body>
+  <button onclick="startProcess()">Start Jupyter Notebook</button>
+</body>
+</html>
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask App</title>
+    <script>
+        function startProcess() {
+            fetch('/launch', { method: 'POST' })
+                .then(response => console.log('Launch endpoint called'))
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+</head>
+<body>
+    <button onclick="startProcess()">Start</button>
+</body>
+</html> -->

@@ -35,6 +35,7 @@ function startProcess() {
 
     // Poll for the Jupyter URL every 2000ms
     function pollForUrl() {
+        console.log('Polling for Jupyter URL...');
         fetch('/get_url', { method: 'GET' })
             .then(response => response.json())
             .then(data => {
@@ -45,6 +46,7 @@ function startProcess() {
                     // Wait briefly so the user sees the full progress bar before redirecting
                     setTimeout(() => {
                         window.location.href = data.url;
+                       
                     }, 500);
                 } else {
                     setTimeout(pollForUrl, 2000);

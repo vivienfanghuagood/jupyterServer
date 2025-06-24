@@ -34,13 +34,24 @@ except Exception as e:
 
 
 def get_node_gpu_counts() -> Dict[str, int]:
-    """Return the number of allocatable GPUs per node."""
+    """Return the number of allocatable GPUs per *healthy* node (no DiskPressure)."""
     config.load_kube_config()
     v1 = client.CoreV1Api()
-    counts = {}
+    counts: Dict[str, int] = {}
+
     for node in v1.list_node().items:
-        alloc = node.status.allocatable.get("nvidia.com/gpu")
+        # find the DiskPressure condition
+        disk_pressure = next(
+            (c for c in node.status.conditions if c.type == "DiskPressure"),
+            None
+        )
+        # skip any node that *is* under DiskPressure
+        if disk_pressure and disk_pressure.status == "True":
+            continue
+
+        alloc = node.status.allocatable.get("amd.com/gpu")
         counts[node.metadata.name] = int(alloc) if alloc else 0
+
     return counts
 
 
@@ -54,6 +65,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
 
     # subtract GPUs requested by running pods
     pods = v1.list_pod_for_all_namespaces().items
+
     usage = {n: 0 for n in node_gpu}
     for pod in pods:
         if not pod.spec.node_name:
@@ -62,7 +74,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
         if node in usage:
             for c in pod.spec.containers:
                 req = c.resources.requests or {}
-                gpu = req.get("nvidia.com/gpu")
+                gpu = req.get("amd.com/gpu")
                 if gpu:
                     usage[node] += int(gpu)
 
@@ -94,10 +106,11 @@ def start_pod_and_get_jupyter_url() -> str | None:
                 client.V1Container(
                     name="jupyter",
                     image="rocm/vllm-dev:20250112",
+                    image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     resources=client.V1ResourceRequirements(
-                        limits={"nvidia.com/gpu": "1"},
-                        requests={"nvidia.com/gpu": "1"},
+                        limits={"amd.com/gpu": "1"},
+                        requests={"amd.com/gpu": "1"},
                     ),
                     security_context=client.V1SecurityContext(
                         capabilities=client.V1Capabilities(add=["SYS_PTRACE"]),

@@ -37,9 +37,11 @@ def start_container_and_get_jupyter_url():
 
     # 2. embed that port in the start-up command
     startup_command = (
-        "pip install --quiet jupyter && "
-        f"jupyter lab --ip=0.0.0.0 --port={jupyter_port} --allow-root "
-        "--NotebookApp.allow_origin='https://colab.research.google.com'"
+        "pip install jupyter && "
+        "git clone --depth 1 https://github.com/indianspeedster/rocm-pytorch-notebooks.git && "
+        "cd rocm-pytorch-notebooks && "
+        f"jupyter lab triton_kernel_dev.ipynb --ip=0.0.0.0 --port={jupyter_port} --allow-root && "
+        "--NotebookApp.default_url='/lab/tree/triton_kernel_dev.ipynb'"
     )
 
     try:
@@ -77,7 +79,7 @@ def start_container_and_get_jupyter_url():
             return None
 
         # 4. compose the external URL
-        url = f"http://{public_ip}:{jupyter_port}/?token={token}"
+        url = f"http://{public_ip}:{jupyter_port}/lab/tree/triton_kernel_dev.ipynb?token={token}"
         print("Jupyter Notebook URL:", url)
         return url
 

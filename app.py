@@ -3,6 +3,7 @@ from container_manager import start_container_and_get_jupyter_url
 import threading
 import json
 import os
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 
@@ -41,7 +42,11 @@ def launch():
 @app.route('/get_url', methods=['GET'])
 def get_url():
     url = load_url_from_file()
-    return jsonify({"url": url})
+
+    return jsonify({
+        "url": url,
+        
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

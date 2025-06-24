@@ -30,7 +30,7 @@ The tokenised URL is also stored in `jupyter_url.json` so that it can be retriev
 
 ## Customisation
 
-`container_manager.py` contains the logic for starting the Docker container. You can modify the image or startup command there if required.
+`container_manager.py` contains the logic for starting the Docker container. You can modify the image or startup command there if required. The file defines a `GPU_RESOURCE` environment variable which defaults to `nvidia.com/gpu`. Set `GPU_RESOURCE` to another value, for example `amd.com/gpu`, if your GPUs use a different resource name.
 
 ## License
 

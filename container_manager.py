@@ -4,6 +4,9 @@ import subprocess
 import re
 import socket
 import random
+import os
+
+GPU_RESOURCE = os.getenv("GPU_RESOURCE", "nvidia.com/gpu")
 
 # ---------- helper ----------------------------------------------------------
 def get_free_port(low: int = 10000, high: int = 60000, max_tries: int = 100) -> int:

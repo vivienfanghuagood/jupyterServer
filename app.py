@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify
-from container_manager import start_container_and_get_jupyter_url
+from container_manager import start_pod_and_get_jupyter_url
 import threading
 import json
 import os
@@ -20,7 +20,7 @@ def load_url_from_file():
     return None
 
 def launch_container():
-    jupyter_url = start_container_and_get_jupyter_url()
+    jupyter_url = start_pod_and_get_jupyter_url()
     if jupyter_url:
         save_url_to_file(jupyter_url)
 
@@ -36,7 +36,7 @@ def launch():
     # Start the container in a background thread
     thread = threading.Thread(target=launch_container)
     thread.start()
-    return jsonify({"message": "Container is launching, please wait..."})
+    return jsonify({"message": "Pod is launching, please wait..."})
 
 @app.route('/get_url', methods=['GET'])
 def get_url():

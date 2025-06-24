@@ -24,9 +24,7 @@ Start the Flask server:
 python app.py
 ```
 
-Open `http://localhost:5000` in your browser and click **Start Jupyter Notebook**. The server starts a container in the background, waits for the Jupyter Lab token, and then redirects your browser to the running notebook.
-
-The tokenised URL is also stored in `jupyter_url.json` so that it can be retrieved by the web page.
+Open `http://localhost:5000` in your browser and click **Start Jupyter Notebook**. The server starts a container in the background, waits for the Jupyter Lab token, and automatically redirects your browser to the running notebook once it is ready.
 
 ## Customisation
 

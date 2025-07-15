@@ -9,16 +9,12 @@ from kubernetes import client, config, stream
 
 # ---------- helper ----------------------------------------------------------
 def get_free_port(low: int = 10000, high: int = 60000, max_tries: int = 100) -> int:
-    """
-    Pick a random TCP port that is not in use on the host.
-    """
     for _ in range(max_tries):
         port = random.randint(low, high)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(("127.0.0.1", port)) != 0:  # 0 means 'open / in use'
+            if s.connect_ex(("127.0.0.1", port)) != 0:
                 return port
     raise RuntimeError("Could not find a free port")
-
 
 # ---------- public IP -------------------------------------------------------
 try:
@@ -29,41 +25,26 @@ except Exception as e:
     print(f"Warning: could not fetch public IP ({e}), defaulting to localhost")
     public_ip = "127.0.0.1"
 
-
 # ---------- main ------------------------------------------------------------
-
-
 def get_node_gpu_counts() -> Dict[str, int]:
-    """Return the number of allocatable GPUs per *healthy* node (no DiskPressure)."""
     config.load_kube_config()
     v1 = client.CoreV1Api()
     counts: Dict[str, int] = {}
 
     for node in v1.list_node().items:
-        # find the DiskPressure condition
-        disk_pressure = next(
-            (c for c in node.status.conditions if c.type == "DiskPressure"),
-            None
-        )
-        # skip any node that *is* under DiskPressure
+        disk_pressure = next((c for c in node.status.conditions if c.type == "DiskPressure"), None)
         if disk_pressure and disk_pressure.status == "True":
             continue
-
         alloc = node.status.allocatable.get("amd.com/gpu")
         counts[node.metadata.name] = int(alloc) if alloc else 0
 
     return counts
 
-
 def start_pod_and_get_jupyter_url() -> str | None:
-    """Launch a Jupyter pod on a node with free GPUs and return the URL."""
     config.load_kube_config()
     v1 = client.CoreV1Api()
 
     node_gpu = get_node_gpu_counts()
-    chosen = None
-
-    # subtract GPUs requested by running pods
     pods = v1.list_pod_for_all_namespaces().items
 
     usage = {n: 0 for n in node_gpu}
@@ -78,6 +59,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
                 if gpu:
                     usage[node] += int(gpu)
 
+    chosen = None
     for node, total in node_gpu.items():
         used = usage.get(node, 0)
         if total - used > 0:
@@ -88,26 +70,26 @@ def start_pod_and_get_jupyter_url() -> str | None:
         print("No node with free GPU capacity found.")
         return None
 
-    jupyter_port = get_free_port()
+    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
+    container_port = 8888
     startup_command = (
         "pip install --quiet jupyter && "
-        f"jupyter lab --ip=0.0.0.0 --port={jupyter_port} --allow-root "
+        f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
         "--NotebookApp.allow_origin='https://colab.research.google.com'"
     )
 
-    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
     pod = client.V1Pod(
         metadata=client.V1ObjectMeta(name=pod_name),
         spec=client.V1PodSpec(
             node_name=chosen,
             restart_policy="Never",
-            host_network=True,
             containers=[
                 client.V1Container(
                     name="jupyter",
                     image="rocm/vllm-dev:20250112",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
+                    ports=[client.V1ContainerPort(container_port=container_port)],
                     resources=client.V1ResourceRequirements(
                         limits={"amd.com/gpu": "1"},
                         requests={"amd.com/gpu": "1"},
@@ -135,6 +117,35 @@ def start_pod_and_get_jupyter_url() -> str | None:
             return None
         time.sleep(interval)
 
+    # Label the pod so the service can select it
+    v1.patch_namespaced_pod(
+        name=pod_name,
+        namespace="default",
+        body={"metadata": {"labels": {"name": pod_name}}}
+    )
+
+    service_name = f"{pod_name}-svc"
+    node_port = random.randint(30000, 32767)
+
+    service = client.V1Service(
+        metadata=client.V1ObjectMeta(name=service_name),
+        spec=client.V1ServiceSpec(
+            type="NodePort",
+            selector={"name": pod_name},
+            ports=[
+                client.V1ServicePort(
+                    name="jupyter",
+                    port=container_port,
+                    target_port=container_port,
+                    node_port=node_port,
+                    protocol="TCP",
+                )
+            ],
+        ),
+    )
+    v1.create_namespaced_service(namespace="default", body=service)
+    print(f"NodePort service {service_name} created on port {node_port}.")
+
     token = None
     start = time.time()
     while time.time() - start < timeout:
@@ -159,6 +170,11 @@ def start_pod_and_get_jupyter_url() -> str | None:
         print("Jupyter server did not come up in time.")
         return None
 
-    url = f"http://{public_ip}:{jupyter_port}/?token={token}"
-    print("Jupyter Notebook URL:", url)
+    url = f"http://{public_ip}:{node_port}/?token={token}"
+    print("Jupyter Notebook URL via NodePort:", url)
     return url
+
+
+# ---------------- Run ----------------------
+if __name__ == "__main__":
+    start_pod_and_get_jupyter_url()

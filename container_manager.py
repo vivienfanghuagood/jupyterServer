@@ -172,7 +172,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
         print("Jupyter server did not come up in time.")
         return None
 
-    url = f"http://{public_ip}:{node_port}/?token={token}"
+    url = f"http://{public_ip}:{node_port}/lab/tree/triton_kernel_dev.ipynb?token={token}"
     print("Jupyter Notebook URL via NodePort:", url)
     return url
 

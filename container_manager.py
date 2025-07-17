@@ -73,9 +73,11 @@ def start_pod_and_get_jupyter_url() -> str | None:
     pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
     container_port = 8888
     startup_command = (
-        "pip install --quiet jupyter && "
-        f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
-        "--NotebookApp.allow_origin='https://colab.research.google.com'"
+        "pip install jupyter && "
+        "git clone --depth 1 https://github.com/indianspeedster/rocm-pytorch-notebooks.git && "
+        "cd rocm-pytorch-notebooks && "
+        f"jupyter lab triton_kernel_dev.ipynb --ip=0.0.0.0 --port={container_port} --allow-root && "
+        "--NotebookApp.default_url='/lab/tree/triton_kernel_dev.ipynb'"
     )
 
     pod = client.V1Pod(

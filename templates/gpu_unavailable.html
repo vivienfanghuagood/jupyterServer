@@ -9,5 +9,13 @@
 <body>
   <h1>GPUs are currently unavailable</h1>
   <p>Please try launching your notebook again later.</p>
+  <button id="refresh-btn">Try Again</button>
+  <script>
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+      // Redirect to the home page which automatically attempts to launch
+      // another pod. If GPUs are still unavailable the user will return here.
+      window.location.href = '/';
+    });
+  </script>
 </body>
 </html>

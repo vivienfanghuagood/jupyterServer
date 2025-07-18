@@ -68,7 +68,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
 
     if not chosen:
         print("No node with free GPU capacity found.")
-        return None
+        return "/no_gpu"
 
     pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
     container_port = 8888

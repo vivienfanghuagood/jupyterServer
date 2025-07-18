@@ -25,6 +25,12 @@ def launch_container():
     if jupyter_url:
         save_url_to_file(jupyter_url)
 
+
+@app.route('/no_gpu')
+def no_gpu():
+    """Inform the user that no GPUs are currently available."""
+    return render_template('gpu_unavailable.html')
+
 @app.route('/')
 def home():
     return render_template('index.html')

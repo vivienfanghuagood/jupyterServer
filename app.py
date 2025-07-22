@@ -14,9 +14,9 @@ def init_db():
         conn.execute(
             "CREATE TABLE IF NOT EXISTS sessions (session_id TEXT PRIMARY KEY, url TEXT)"
         )
+
 app = Flask(__name__)
 init_db()
-
 def create_session(session_id: str):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(

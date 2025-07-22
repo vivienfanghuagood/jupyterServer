@@ -1,29 +1,16 @@
 from flask import Flask, render_template, jsonify
 from container_manager import start_pod_and_get_jupyter_url
 import threading
-import json
-import os
-from urllib.parse import urlparse
+
 
 app = Flask(__name__)
 
-URL_FILE = "jupyter_url.json"
-
-def save_url_to_file(url):
-    with open(URL_FILE, "w") as f:
-        json.dump({"url": url}, f)
-
-def load_url_from_file():
-    if os.path.exists(URL_FILE):
-        with open(URL_FILE, "r") as f:
-            data = json.load(f)
-            return data.get("url")
-    return None
+# Holds the most recently launched Jupyter URL
+jupyter_url = None
 
 def launch_container():
+    global jupyter_url
     jupyter_url = start_pod_and_get_jupyter_url()
-    if jupyter_url:
-        save_url_to_file(jupyter_url)
 
 
 @app.route('/no_gpu')
@@ -37,9 +24,9 @@ def home():
 
 @app.route('/launch', methods=['POST'])
 def launch():
-    # Remove any previous URL before launching
-    if os.path.exists(URL_FILE):
-        os.remove(URL_FILE)
+    global jupyter_url
+    # Reset any previous URL before launching
+    jupyter_url = None
     # Start the container in a background thread
     thread = threading.Thread(target=launch_container)
     thread.start()
@@ -47,11 +34,9 @@ def launch():
 
 @app.route('/get_url', methods=['GET'])
 def get_url():
-    url = load_url_from_file()
-
     return jsonify({
-        "url": url,
-        
+        "url": jupyter_url,
+
     })
 
 if __name__ == '__main__':

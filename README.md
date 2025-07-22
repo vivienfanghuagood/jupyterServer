@@ -27,7 +27,7 @@ python app.py
 
 Open `http://localhost:5000` in your browser and click **Start Jupyter Notebook**. The server creates a Kubernetes pod in the background, waits for the Jupyter Lab token, and then redirects your browser to the running notebook.
 
-The tokenised URL is also stored in `jupyter_url.json` so that it can be retrieved by the web page.
+The application keeps the generated Jupyter URL in memory while the pod starts.
 
 ## Customisation
 

@@ -4,7 +4,7 @@ import threading
 import sqlite3
 import uuid
 
-app = Flask(__name__)
+
 
 DB_PATH = "sessions.db"
 
@@ -14,7 +14,8 @@ def init_db():
         conn.execute(
             "CREATE TABLE IF NOT EXISTS sessions (session_id TEXT PRIMARY KEY, url TEXT)"
         )
-
+app = Flask(__name__)
+init_db()
 
 def create_session(session_id: str):
     with sqlite3.connect(DB_PATH) as conn:
@@ -75,5 +76,5 @@ def get_url():
 
 
 if __name__ == "__main__":
-    init_db()
+   
     app.run(debug=True, host="0.0.0.0", port=5000)

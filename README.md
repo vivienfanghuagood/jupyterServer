@@ -19,15 +19,13 @@ pip install -r requirements.txt
 
 ## Running
 
-Start the Flask server:
+Start the application using gunicorn:
 
 ```bash
-python app.py
+gunicorn -w 4 -b 0.0.0.0:8000 app:app
 ```
 
-Open `http://localhost:5000` in your browser and click **Start Jupyter Notebook**. The server creates a Kubernetes pod in the background, waits for the Jupyter Lab token, and then redirects your browser to the running notebook.
-
-The tokenised URL is also stored in `jupyter_url.json` so that it can be retrieved by the web page.
+Open `http://localhost:8000` in your browser. The web interface automatically begins launching a notebook pod. Each request is assigned a session ID that is stored in a local SQLite database. The page polls the API with this ID until the Jupyter server is ready and then redirects your browser to the running instance.
 
 ## Customisation
 

@@ -16,10 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
       progressBar.innerText = '0%';
   
       // Start the container launch process
+      let sessionId = null;
       fetch('/launch', { method: 'POST' })
           .then(response => response.json())
           .then(data => {
               console.log(data.message);
+              sessionId = data.session_id;
               // Start polling for the Jupyter URL and simulate progress
               pollForUrl();
               simulateProgress();
@@ -41,8 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
       // Poll for the Jupyter URL every 2000ms
       function pollForUrl() {
+          if (!sessionId) return;
           console.log('Polling for Jupyter URL...');
-          fetch('/get_url', { method: 'GET' })
+          fetch(`/get_url?session_id=${sessionId}`, { method: 'GET' })
               .then(response => response.json())
               .then(data => {
                   if (data.url) {
@@ -60,4 +63,4 @@ document.addEventListener('DOMContentLoaded', () => {
               .catch(error => console.error('Error:', error));
       }
   }
-  
+

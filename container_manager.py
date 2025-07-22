@@ -74,10 +74,11 @@ def start_pod_and_get_jupyter_url() -> str | None:
     container_port = 8888
     startup_command = (
         "pip install jupyter && "
+        "pip install ihighlight && "
         "git clone --depth 1 https://github.com/indianspeedster/rocm-pytorch-notebooks.git && "
         "cd rocm-pytorch-notebooks && "
-        f"jupyter lab triton_kernel_dev.ipynb --ip=0.0.0.0 --port={container_port} --allow-root && "
-        "--NotebookApp.default_url='/lab/tree/triton_kernel_dev.ipynb'"
+        f"jupyter lab triton_kernel_dev.ipynb --ip=0.0.0.0 --port={container_port} --allow-root  "
+        
     )
 
     pod = client.V1Pod(
@@ -91,6 +92,9 @@ def start_pod_and_get_jupyter_url() -> str | None:
                     image="rocm/vllm-dev:20250112",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
+                    env=[
+                    client.V1EnvVar(name="SHELL", value="/bin/bash")
+                ],
                     ports=[client.V1ContainerPort(container_port=container_port)],
                     resources=client.V1ResourceRequirements(
                         limits={"amd.com/gpu": "1"},

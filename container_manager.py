@@ -84,7 +84,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
     pod = client.V1Pod(
         metadata=client.V1ObjectMeta(name=pod_name),
         spec=client.V1PodSpec(
-            node_name=chosen,
+            
             restart_policy="Never",
             containers=[
                 client.V1Container(
@@ -120,7 +120,10 @@ def start_pod_and_get_jupyter_url() -> str | None:
             break
         if p.status.phase == "Failed":
             print("Pod failed to start.")
-            return None
+            return "/no_gpu"
+        if p.status.phase == "UnexpectedAdmissionError":
+            print("Pod admission error, likely due to insufficient resources.")
+            return "/no_gpu"
         time.sleep(interval)
 
     # Label the pod so the service can select it

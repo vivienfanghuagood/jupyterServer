@@ -1,6 +1,8 @@
-from flask import Flask, render_template, jsonify, request
+from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from container_manager import start_pod_and_get_jupyter_url
-import threading
 import sqlite3
 import uuid
 
@@ -15,7 +17,9 @@ def init_db():
             "CREATE TABLE IF NOT EXISTS sessions (session_id TEXT PRIMARY KEY, url TEXT)"
         )
 
-app = Flask(__name__)
+app = FastAPI()
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 init_db()
 def create_session(session_id: str):
     with sqlite3.connect(DB_PATH) as conn:
@@ -46,35 +50,34 @@ def launch_container(session_id: str):
         update_session_url(session_id, jupyter_url)
 
 
-@app.route("/no_gpu")
-def no_gpu():
+@app.get("/no_gpu", response_class=HTMLResponse)
+async def no_gpu(request: Request):
     """Inform the user that no GPUs are currently available."""
-    return render_template("gpu_unavailable.html")
+    return templates.TemplateResponse("gpu_unavailable.html", {"request": request})
 
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.route("/launch", methods=["POST"])
-def launch():
+@app.post("/launch")
+async def launch(background_tasks: BackgroundTasks):
     session_id = str(uuid.uuid4())
     create_session(session_id)
-    thread = threading.Thread(target=launch_container, args=(session_id,))
-    thread.start()
-    return jsonify(
+    background_tasks.add_task(launch_container, session_id)
+    return JSONResponse(
         {"message": "Pod is launching, please wait...", "session_id": session_id}
     )
 
 
-@app.route("/get_url", methods=["GET"])
-def get_url():
-    session_id = request.args.get("session_id")
+@app.get("/get_url")
+async def get_url(session_id: str | None = None):
     url = get_session_url(session_id) if session_id else None
-    return jsonify({"url": url})
+    return JSONResponse({"url": url})
 
 
 if __name__ == "__main__":
-   
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    import uvicorn
+
+    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)

@@ -85,6 +85,13 @@ def start_pod_and_get_jupyter_url() -> str | None:
         metadata=client.V1ObjectMeta(name=pod_name),
         spec=client.V1PodSpec(
             #node_name=chosen,
+             tolerations=[
+                client.V1Toleration(
+                    key="amd.com/gpu",
+                    operator="Exists",
+                    effect="NoSchedule",
+                )
+            ],
             restart_policy="Never",
             containers=[
                 client.V1Container(

@@ -84,7 +84,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
     pod = client.V1Pod(
         metadata=client.V1ObjectMeta(name=pod_name),
         spec=client.V1PodSpec(
-            node_name=chosen,
+            #node_name=chosen,
             restart_policy="Never",
             containers=[
                 client.V1Container(

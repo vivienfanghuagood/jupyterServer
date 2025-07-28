@@ -34,7 +34,7 @@ Open `http://localhost:8000` in your browser. The web interface automatically be
 ### Kubernetes Setup
 
 1. Ensure your kubeconfig is accessible (e.g. via `~/.kube/config`).
-2. The nodes must expose the GPU resource as `nvidia.com/gpu`.
+2. The nodes must expose the GPU resource as `amd.com/gpu`.
 3. Install the Python dependencies and then start the FastAPI server as described above.
 
 ## License

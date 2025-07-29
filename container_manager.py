@@ -96,7 +96,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="rocm/vllm-dev:20250112",
+                    image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[

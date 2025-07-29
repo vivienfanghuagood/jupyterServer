@@ -75,8 +75,8 @@ def start_pod_and_get_jupyter_url() -> str | None:
     startup_command = (
         "pip install jupyter && "
         "pip install ihighlight && "
-        "git clone --depth 1 https://github.com/indianspeedster/rocm-pytorch-notebooks.git && "
-        "cd rocm-pytorch-notebooks && "
+        "git clone --depth 1 https://github.com/danielhua23/ai_sprint_shanghai.git && "
+        "cd ai_sprint_shanghai && cd workshop && "
         f"jupyter lab triton_kernel_dev.ipynb --ip=0.0.0.0 --port={container_port} --allow-root  "
         
     )
@@ -187,7 +187,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
         print("Jupyter server did not come up in time.")
         return None
 
-    url = f"http://{public_ip}:{node_port}/lab/tree/triton_kernel_dev.ipynb?token={token}"
+    url = f"http://{public_ip}:{node_port}/lab/tree/2_kernel_optimization_lab/0_triton_examples/triton_kernel_workshop.ipynb?token={token}"
     print("Jupyter Notebook URL via NodePort:", url)
     return url
 

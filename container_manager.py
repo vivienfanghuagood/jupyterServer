@@ -77,7 +77,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
         "pip install ihighlight && "
         "git clone --depth 1 https://github.com/danielhua23/ai_sprint_shanghai.git && "
         "cd ai_sprint_shanghai && cd workshop && "
-        f"jupyter lab triton_kernel_dev.ipynb --ip=0.0.0.0 --port={container_port} --allow-root  "
+        f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root  "
         
     )
 

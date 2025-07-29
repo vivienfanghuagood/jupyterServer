@@ -14,3 +14,17 @@ input[type="email"] {
     padding: 8px;
     font-size: 14px;
 }
+
+#landing {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+#logo {
+    width: 150px;
+    margin-bottom: 20px;
+}
+
+h1 {
+    margin-bottom: 20px;
+}

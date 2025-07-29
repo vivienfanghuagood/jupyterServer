@@ -2,7 +2,7 @@
 
 This repository contains a small FastAPI application that launches a Jupyter Lab server inside a Kubernetes pod.
 
-The web interface provides a single button which starts the pod and shows a progress bar until Jupyter is ready. Once the notebook server is up, the page redirects to the running instance.
+The web interface prompts for an email address. When you submit the form it launches a Jupyter Lab server inside a Kubernetes pod and stores the resulting URL for that email. If you request again with the same email, the stored URL is returned instead of creating a new pod.
 
 ## Requirements
 
@@ -25,7 +25,7 @@ Start the application using uvicorn:
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in your browser. The web interface automatically begins launching a notebook pod. Each request is assigned a session ID that is stored in a local SQLite database. The page polls the API with this ID until the Jupyter server is ready and then redirects your browser to the running instance.
+Open `http://localhost:8000` in your browser and enter your email address. The application stores the notebook URL in a local SQLite database and reuses it on subsequent requests.
 
 ## Customisation
 

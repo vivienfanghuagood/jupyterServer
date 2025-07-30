@@ -3,16 +3,31 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from container_manager import start_pod_and_get_jupyter_url
-import sqlite3
+import psycopg2
+import os
 
-DB_PATH = "sessions.db"
+DB_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+DB_NAME = os.environ.get("POSTGRES_DB", "flaskdb")
+DB_USER = os.environ.get("POSTGRES_USER", "flaskuser")
+DB_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "flaskpass")
+
+
+def get_conn():
+    return psycopg2.connect(
+        host=DB_HOST,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD,
+    )
 
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS sessions (email TEXT PRIMARY KEY, url TEXT)"
-        )
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS sessions (email TEXT PRIMARY KEY, url TEXT);"
+            )
+        conn.commit()
 
 
 app = FastAPI()
@@ -22,26 +37,31 @@ init_db()
 
 
 def create_session(email: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            "INSERT OR IGNORE INTO sessions(email, url) VALUES (?, NULL)", (email,)
-        )
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO sessions(email, url) VALUES (%s, NULL) ON CONFLICT DO NOTHING", (email,)
+            )
+        conn.commit()
 
 
 def update_session_url(email: str, url: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            "UPDATE sessions SET url = ? WHERE email = ?", (url, email)
-        )
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE sessions SET url = %s WHERE email = %s", (url, email)
+            )
+        conn.commit()
 
 
 def get_session_url(email: str) -> str | None:
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute(
-            "SELECT url FROM sessions WHERE email = ?", (email,)
-        )
-        row = cur.fetchone()
-        return row[0] if row else None
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT url FROM sessions WHERE email = %s", (email,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
 
 
 def launch_container(email: str):
@@ -52,7 +72,6 @@ def launch_container(email: str):
 
 @app.get("/no_gpu", response_class=HTMLResponse)
 async def no_gpu(request: Request):
-    """Inform the user that no GPUs are currently available."""
     return templates.TemplateResponse("gpu_unavailable.html", {"request": request})
 
 
@@ -85,5 +104,4 @@ async def get_url(email: str | None = None):
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)

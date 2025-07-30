@@ -26,7 +26,7 @@ spec:
               apt update && apt install -y git curl gcc python3-dev libffi-dev libssl-dev && \
               git clone https://github.com/indianspeedster/jupyterServer.git && \
               cd jupyterServer && \
-              git checkout cn-ws && \
+              git checkout migrate_postgres && \
               pip install --upgrade pip && \
               pip install -r requirements.txt && \
               export KUBECONFIG=/kube/config && \
@@ -37,6 +37,18 @@ spec:
             - name: kubeconfig-volume
               mountPath: /kube
               readOnly: true
+          env:
+            - name: POSTGRES_HOST
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "flaskdb"
+            - name: POSTGRES_USER
+              value: "flaskuser"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
       volumes:
         - name: kubeconfig-volume
           configMap:
@@ -53,4 +65,3 @@ spec:
   ports:
     - port: 6060
       targetPort: 5000
-    # Fixed NodePort

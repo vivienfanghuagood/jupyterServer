@@ -24,7 +24,8 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 DO $$
                 BEGIN
                     IF NOT EXISTS (
@@ -38,9 +39,22 @@ def init_db():
                             pod_name TEXT
                         );
                     END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                        AND table_name = 'logs'
+                    ) THEN
+                        CREATE TABLE logs (
+                            id SERIAL PRIMARY KEY,
+                            email TEXT,
+                            started_at TIMESTAMP
+                        );
+                    END IF;
                 END
                 $$;
-            """)
+                """
+            )
             cur.execute(
                 "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS pod_name TEXT"
             )
@@ -84,10 +98,22 @@ def get_session_url(email: str) -> tuple[str | None, str | None]:
             return (row[0], row[1]) if row else (None, None)
 
 
+def log_container_start(email: str):
+    """Insert a log entry recording when a container was started."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO logs(email, started_at) VALUES (%s, NOW())",
+                (email,),
+            )
+        conn.commit()
+
+
 def launch_container(email: str):
     pod_name, jupyter_url = start_pod_and_get_jupyter_url()
     if jupyter_url:
         update_session_url(email, jupyter_url, pod_name)
+        log_container_start(email)
 
 
 @app.get("/no_gpu", response_class=HTMLResponse)

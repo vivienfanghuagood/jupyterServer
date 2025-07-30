@@ -27,6 +27,10 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 
 Open `http://localhost:8000` in your browser and enter your email address. The application stores the notebook URL and the Kubernetes pod name in a local SQLite database and reuses the information on subsequent requests.
 
+Each time a container is successfully started, the email address and the start
+time are recorded in a separate `logs` table within the same database. This
+table can be used to track container launches over time.
+
 ## Customisation
 
 `container_manager.py` contains the logic for starting the Kubernetes pod. You can modify the image or startup command there if required. The script selects a node that still has available GPUs and schedules the pod on it.

@@ -24,41 +24,29 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         with conn.cursor() as cur:
+            # Create sessions table if it doesn't exist
             cur.execute(
                 """
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'public'
-                        AND table_name = 'sessions'
-                    ) THEN
-                        CREATE TABLE sessions (
-                            email TEXT PRIMARY KEY,
-                            url TEXT,
-                            pod_name TEXT
-                        );
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'public'
-                        AND table_name = 'logs'
-                    ) THEN
-                        CREATE TABLE logs (
-                            id SERIAL PRIMARY KEY,
-                            email TEXT,
-                            started_at TIMESTAMP
-                        );
-                    END IF;
-                END
-                $$;
+                CREATE TABLE IF NOT EXISTS sessions (
+                    email TEXT PRIMARY KEY,
+                    url TEXT,
+                    pod_name TEXT
+                );
                 """
             )
+
+            # Create logs table if it doesn't exist
             cur.execute(
-                "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS pod_name TEXT"
+                """
+                CREATE TABLE IF NOT EXISTS logs (
+                    id SERIAL PRIMARY KEY,
+                    email TEXT,
+                    started_at TIMESTAMP
+                );
+                """
             )
         conn.commit()
+
 
 
 

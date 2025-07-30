@@ -28,18 +28,22 @@ def init_db():
                 DO $$
                 BEGIN
                     IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.tables 
-                        WHERE table_schema = 'public' 
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public'
                         AND table_name = 'sessions'
                     ) THEN
                         CREATE TABLE sessions (
                             email TEXT PRIMARY KEY,
-                            url TEXT
+                            url TEXT,
+                            pod_name TEXT
                         );
                     END IF;
                 END
                 $$;
             """)
+            cur.execute(
+                "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS pod_name TEXT"
+            )
         conn.commit()
 
 
@@ -54,34 +58,36 @@ def create_session(email: str):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO sessions(email, url) VALUES (%s, NULL) ON CONFLICT DO NOTHING", (email,)
+                "INSERT INTO sessions(email, url, pod_name) VALUES (%s, NULL, NULL) ON CONFLICT DO NOTHING",
+                (email,),
             )
         conn.commit()
 
 
-def update_session_url(email: str, url: str):
+def update_session_url(email: str, url: str, pod_name: str | None):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE sessions SET url = %s WHERE email = %s", (url, email)
+                "UPDATE sessions SET url = %s, pod_name = %s WHERE email = %s",
+                (url, pod_name, email),
             )
         conn.commit()
 
 
-def get_session_url(email: str) -> str | None:
+def get_session_url(email: str) -> tuple[str | None, str | None]:
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT url FROM sessions WHERE email = %s", (email,)
+                "SELECT url, pod_name FROM sessions WHERE email = %s", (email,)
             )
             row = cur.fetchone()
-            return row[0] if row else None
+            return (row[0], row[1]) if row else (None, None)
 
 
 def launch_container(email: str):
-    jupyter_url = start_pod_and_get_jupyter_url()
+    pod_name, jupyter_url = start_pod_and_get_jupyter_url()
     if jupyter_url:
-        update_session_url(email, jupyter_url)
+        update_session_url(email, jupyter_url, pod_name)
 
 
 @app.get("/no_gpu", response_class=HTMLResponse)
@@ -101,9 +107,9 @@ async def launch(background_tasks: BackgroundTasks, request: Request):
     if not email:
         return JSONResponse({"error": "email required"}, status_code=400)
 
-    existing = get_session_url(email)
-    if existing:
-        return JSONResponse({"url": existing})
+    existing_url, _ = get_session_url(email)
+    if existing_url:
+        return JSONResponse({"url": existing_url})
 
     create_session(email)
     background_tasks.add_task(launch_container, email)
@@ -112,8 +118,8 @@ async def launch(background_tasks: BackgroundTasks, request: Request):
 
 @app.get("/get_url")
 async def get_url(email: str | None = None):
-    url = get_session_url(email) if email else None
-    return JSONResponse({"url": url})
+    url, pod_name = get_session_url(email) if email else (None, None)
+    return JSONResponse({"url": url, "pod_name": pod_name})
 
 
 if __name__ == "__main__":

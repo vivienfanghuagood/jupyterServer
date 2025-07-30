@@ -25,7 +25,7 @@ Start the application using uvicorn:
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in your browser and enter your email address. The application stores the notebook URL in a local SQLite database and reuses it on subsequent requests.
+Open `http://localhost:8000` in your browser and enter your email address. The application stores the notebook URL and the Kubernetes pod name in a local SQLite database and reuses the information on subsequent requests.
 
 ## Customisation
 

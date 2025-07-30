@@ -40,7 +40,7 @@ def get_node_gpu_counts() -> Dict[str, int]:
 
     return counts
 
-def start_pod_and_get_jupyter_url() -> str | None:
+def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     config.load_kube_config()
     v1 = client.CoreV1Api()
 
@@ -68,7 +68,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
 
     if not chosen:
         print("No node with free GPU capacity found.")
-        return "/no_gpu"
+        return None, "/no_gpu"
 
     pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
     container_port = 8888
@@ -127,10 +127,10 @@ def start_pod_and_get_jupyter_url() -> str | None:
             break
         if p.status.phase == "Failed":
             print("Pod failed to start.")
-            return "/no_gpu"
+            return pod_name, "/no_gpu"
         if p.status.phase == "UnexpectedAdmissionError":
             print("Pod admission error, likely due to insufficient resources.")
-            return "/no_gpu"
+            return pod_name, "/no_gpu"
         time.sleep(interval)
 
     # Label the pod so the service can select it
@@ -185,11 +185,11 @@ def start_pod_and_get_jupyter_url() -> str | None:
 
     if not token:
         print("Jupyter server did not come up in time.")
-        return None
+        return pod_name, None
 
     url = f"http://{public_ip}:{node_port}/lab/tree/2_kernel_optimization_lab/0_triton_examples/triton_kernel_workshop.ipynb?token={token}"
     print("Jupyter Notebook URL via NodePort:", url)
-    return url
+    return pod_name, url
 
 
 # ---------------- Run ----------------------

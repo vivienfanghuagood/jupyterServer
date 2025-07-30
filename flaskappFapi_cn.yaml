@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-jupyterserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-jupyterserver
+  template:
+    metadata:
+      labels:
+        app: flask-jupyterserver
+    spec:
+      restartPolicy: Always
+      tolerations:
+        - key: "amd.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: flask-container
+          image: python:3.12-slim
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              apt update && apt install -y git curl gcc python3-dev libffi-dev libssl-dev && \
+              git clone https://github.com/indianspeedster/jupyterServer.git && \
+              cd jupyterServer && \
+              git checkout cn-ws && \
+              pip install --upgrade pip && \
+              pip install -r requirements.txt && \
+              export KUBECONFIG=/kube/config && \
+              uvicorn app:app --workers 4 --host 0.0.0.0 --port 5000
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: kubeconfig-volume
+              mountPath: /kube
+              readOnly: true
+      volumes:
+        - name: kubeconfig-volume
+          configMap:
+            name: kubeconfig-cm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: flask-jupyterserver
+  ports:
+    - port: 6060
+      targetPort: 5000
+    # Fixed NodePort

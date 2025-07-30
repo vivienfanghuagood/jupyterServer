@@ -24,10 +24,24 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS sessions (email TEXT PRIMARY KEY, url TEXT);"
-            )
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'sessions'
+                    ) THEN
+                        CREATE TABLE sessions (
+                            email TEXT PRIMARY KEY,
+                            url TEXT
+                        );
+                    END IF;
+                END
+                $$;
+            """)
         conn.commit()
+
 
 
 app = FastAPI()

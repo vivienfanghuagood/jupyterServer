@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 kubernetes
 jinja2
+psycopg2-binary
+

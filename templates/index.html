@@ -1,22 +1,128 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jupyter Launcher</title>
+  <title>AMD Beijing Workshop</title>
   <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
   <script src="{{ url_for('static', path='js/script.js') }}" defer></script>
+  <style>
+    /* Reset & Base */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f4f9;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* Landing Container */
+    #landing {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+
+    /* Logo */
+    #logo {
+      width: 120px;
+      margin-bottom: 20px;
+      transition: transform .3s;
+    }
+    #logo:hover { transform: scale(1.1); }
+
+    /* Title */
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #20232a;
+      margin-bottom: 30px;
+    }
+
+    /* Form & Inputs */
+    #form-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    #email-input {
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color .3s;
+    }
+    #email-input:focus {
+      border-color: #5561FF;
+      outline: none;
+    }
+
+    /* Button */
+    #request-btn {
+      padding: 12px 0;
+      background: linear-gradient(90deg, #5561FF, #34D1BF);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .3s, transform .2s;
+    }
+    #request-btn:hover {
+      background: linear-gradient(90deg, #4450E0, #28B3A0);
+      transform: translateY(-2px);
+    }
+
+    /* Progress Bar */
+    #progress-container {
+      display: none;
+      margin-top: 30px;
+      background: #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 25px;
+      width: 100%;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 100%;
+      background-color: #34D1BF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      transition: width .4s ease;
+    }
+  </style>
 </head>
 <body>
   <div id="landing">
-    <img id="logo" src="" alt="AMD Logo">
-    <h1>AMD Shanghai Workshop</h1>
+    <img id="logo" src="image.png" alt="AMD">
+    <h1>AMD Beijing Workshop</h1>
+
     <div id="form-container">
-      <input type="email" id="email-input" placeholder="Enter your email" required>
+      <input
+        type="email"
+        id="email-input"
+        placeholder="Enter your email"
+        required
+      >
       <button id="request-btn">Request Notebook</button>
     </div>
-    <div id="progress-container" style="display: none; margin-top: 20px;">
-      <div id="progress-bar" style="width: 0%; height: 25px; background-color: green; text-align: center; color: white;">0%</div>
+
+    <div id="progress-container">
+      <div id="progress-bar">0%</div>
     </div>
   </div>
 </body>

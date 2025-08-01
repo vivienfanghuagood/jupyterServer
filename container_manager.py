@@ -75,8 +75,8 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     startup_command = (
         "pip install jupyter && "
         "pip install ihighlight && "
-        "git clone --depth 1 https://github.com/danielhua23/ai_sprint_shanghai.git && "
-        "cd ai_sprint_shanghai && cd workshop && "
+        "git clone --depth 1 https://github.com/seungrokj/AAI25_workshop.git && "
+        "cd AAI25_workshop && cd workshop_101 && "
         f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root  "
         
     )
@@ -96,7 +96,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715",
+                    image="rocm/vllm:rocm6.3.1_vllm_0.8.5_20250513",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[
@@ -187,7 +187,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
         print("Jupyter server did not come up in time.")
         return pod_name, None
 
-    url = f"http://{public_ip}:{node_port}/lab/tree/2_kernel_optimization_lab/0_triton_examples/triton_kernel_workshop.ipynb?token={token}"
+    url = f"http://{public_ip}:{node_port}/lab/tree/notebook.ipynb?token={token}"
     print("Jupyter Notebook URL via NodePort:", url)
     return pod_name, url
 

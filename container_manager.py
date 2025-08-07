@@ -40,7 +40,7 @@ def get_node_gpu_counts() -> Dict[str, int]:
 
     return counts
 
-def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
+def start_pod_and_get_codeserver_url() -> tuple[str | None, str | None]:
     config.load_kube_config()
     v1 = client.CoreV1Api()
 
@@ -70,15 +70,13 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
         print("No node with free GPU capacity found.")
         return None, "/no_gpu"
 
-    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
-    container_port = 8888
+    pod_name = f"code-server-launcher-{random.randint(1000,9999)}"
+    container_port = 8080
     startup_command = (
-        "pip install jupyter && "
-        "pip install ihighlight && "
+        "which code-server || curl -fsSL https://code-server.dev/install.sh | sh && "
         "git clone --depth 1 https://github.com/danielhua23/ai_sprint_shanghai.git && "
         "cd ai_sprint_shanghai && cd workshop && "
-        f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root  "
-        
+        f"code-server --bind-addr 0.0.0.0:{container_port} --auth password"
     )
 
     pod = client.V1Pod(
@@ -95,13 +93,14 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             restart_policy="Never",
             containers=[
                 client.V1Container(
-                    name="jupyter",
+                    name="code-server",
                     image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[
-                    client.V1EnvVar(name="SHELL", value="/bin/bash")
-                ],
+                        client.V1EnvVar(name="SHELL", value="/bin/bash"),
+                        client.V1EnvVar(name="PASSWORD", value="password"),
+                    ],
                     ports=[client.V1ContainerPort(container_port=container_port)],
                     resources=client.V1ResourceRequirements(
                         limits={"amd.com/gpu": "1"},
@@ -117,7 +116,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     )
 
     v1.create_namespaced_pod(namespace="default", body=pod)
-    print(f"Pod {pod_name} created on {chosen}. Waiting for Jupyter…")
+    print(f"Pod {pod_name} created on {chosen}. Waiting for code-server…")
 
     timeout, interval = 120, 5
     start = time.time()
@@ -141,8 +140,6 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     )
 
     service_name = f"{pod_name}-svc"
-    #node_port = random.randint(30000, 32767)
-
     service = client.V1Service(
         metadata=client.V1ObjectMeta(name=service_name),
         spec=client.V1ServiceSpec(
@@ -150,10 +147,9 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             selector={"name": pod_name},
             ports=[
                 client.V1ServicePort(
-                    name="jupyter",
+                    name="code-server",
                     port=container_port,
                     target_port=container_port,
-                    #node_port=node_port,
                     protocol="TCP",
                 )
             ],
@@ -163,35 +159,11 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     node_port = service.spec.ports[0].node_port
     print(f"NodePort service {service_name} created on port {node_port}.")
 
-    token = None
-    start = time.time()
-    while time.time() - start < timeout:
-        exec_out = stream.stream(
-            v1.connect_get_namespaced_pod_exec,
-            pod_name,
-            "default",
-            command=["jupyter", "notebook", "list"],
-            stderr=True,
-            stdin=False,
-            stdout=True,
-            tty=False,
-            container="jupyter",
-        )
-        m = re.search(r"\?token=([^\s&]+)", exec_out)
-        if m:
-            token = m.group(1)
-            break
-        time.sleep(interval)
-
-    if not token:
-        print("Jupyter server did not come up in time.")
-        return pod_name, None
-
-    url = f"http://{public_ip}:{node_port}/lab/tree/2_kernel_optimization_lab/0_triton_examples/triton_kernel_workshop.ipynb?token={token}"
-    print("Jupyter Notebook URL via NodePort:", url)
+    url = f"http://{public_ip}:{node_port}/"
+    print("code-server URL via NodePort:", url)
     return pod_name, url
 
 
 # ---------------- Run ----------------------
 if __name__ == "__main__":
-    start_pod_and_get_jupyter_url()
+    start_pod_and_get_codeserver_url()

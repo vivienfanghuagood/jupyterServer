@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from container_manager import start_pod_and_get_jupyter_url
+from container_manager import start_pod_and_get_codeserver_url
 import psycopg2
 import os
 
@@ -98,9 +98,9 @@ def log_container_start(email: str):
 
 
 def launch_container(email: str):
-    pod_name, jupyter_url = start_pod_and_get_jupyter_url()
-    if jupyter_url:
-        update_session_url(email, jupyter_url, pod_name)
+    pod_name, code_url = start_pod_and_get_codeserver_url()
+    if code_url:
+        update_session_url(email, code_url, pod_name)
         log_container_start(email)
 
 

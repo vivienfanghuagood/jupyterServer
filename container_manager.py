@@ -17,13 +17,8 @@ def get_free_port(low: int = 10000, high: int = 60000, max_tries: int = 100) -> 
     raise RuntimeError("Could not find a free port")
 
 # ---------- public IP -------------------------------------------------------
-try:
-    public_ip = subprocess.check_output(
-        ["curl", "--silent", "ifconfig.me"], text=True, timeout=10
-    ).strip()
-except Exception as e:
-    print(f"Warning: could not fetch public IP ({e}), defaulting to localhost")
-    public_ip = "127.0.0.1"
+# Use hardcoded IP instead of dynamic detection
+public_ip = "129.212.190.193"
 
 # ---------- main ------------------------------------------------------------
 def get_node_gpu_counts() -> Dict[str, int]:
@@ -77,8 +72,9 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
         "pip install ihighlight && "
         "git clone --depth 1 https://github.com/seungrokj/AAI25_workshop.git && "
         "cd AAI25_workshop && cd workshop_101 && "
-        f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root  "
-        
+        f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
+        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
+        f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
     )
 
     pod = client.V1Pod(
@@ -187,8 +183,30 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
         print("Jupyter server did not come up in time.")
         return pod_name, None
 
-    url = f"http://{public_ip}:{node_port}/lab/tree/notebook.ipynb?token={token}"
-    print("Jupyter Notebook URL via NodePort:", url)
+    # Generate URL without port for reverse proxy
+    # The nginx proxy will route /jupyter/{pod_name}/ to the actual NodePort
+    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/notebook.ipynb?token={token}"
+    print("Jupyter Notebook URL:", url)
+    
+    # Store the mapping for nginx configuration
+    import json
+    import os
+    
+    mapping_file = "/tmp/jupyter_pod_mappings.json"
+    mappings = {}
+    if os.path.exists(mapping_file):
+        with open(mapping_file, 'r') as f:
+            mappings = json.load(f)
+    
+    mappings[pod_name] = {
+        "node_port": node_port,
+        "token": token,
+        "public_ip": public_ip
+    }
+    
+    with open(mapping_file, 'w') as f:
+        json.dump(mappings, f, indent=2)
+    
     return pod_name, url
 
 

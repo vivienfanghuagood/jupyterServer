@@ -68,14 +68,15 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
     container_port = 8888
     startup_command = (
-        "pip install jupyter && "
-        "pip install ihighlight && "
-        "git clone https://github.com/hubertlu-tw/sglang_amd_sf_meetup_workshop.git && "
-        "cd sglang_amd_sf_meetup_workshop && "
-        f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
-        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
-        f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
-    )
+    "pip install --no-cache-dir jupyter ihighlight && "
+    "echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc && "
+    "source ~/.bashrc && "
+    "git clone https://github.com/hubertlu-tw/sglang_amd_sf_meetup_workshop.git && "
+    "cd sglang_amd_sf_meetup_workshop && "
+    f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
+    f"--ServerApp.base_url=/jupyter/{pod_name}/ "
+    f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
+)
 
     pod = client.V1Pod(
         metadata=client.V1ObjectMeta(name=pod_name),

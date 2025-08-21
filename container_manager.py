@@ -70,8 +70,8 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     startup_command = (
         "pip install jupyter && "
         "pip install ihighlight && "
-        "git clone --depth 1 https://github.com/seungrokj/AAI25_workshop.git && "
-        "cd AAI25_workshop && cd workshop_101 && "
+        "git clone https://github.com/hubertlu-tw/sglang_amd_sf_meetup_workshop.git && "
+        "cd sglang_amd_sf_meetup_workshop && "
         f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
         f"--ServerApp.base_url=/jupyter/{pod_name}/ "
         f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
@@ -89,16 +89,28 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
                 )
             ],
             restart_policy="Never",
+            volumes=[
+                client.V1Volume(
+                    name="models-volume",
+                    host_path=client.V1HostPathVolumeSource(path="/mnt/models")
+                )
+            ],
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="rocm/vllm:rocm6.3.1_vllm_0.8.5_20250513",
+                    image="henryx/haisgl:sglang-v0.5.0rc2-rocm630-mi30x-workshop",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[
                     client.V1EnvVar(name="SHELL", value="/bin/bash")
                 ],
                     ports=[client.V1ContainerPort(container_port=container_port)],
+                    volume_mounts=[
+                        client.V1VolumeMount(
+                            name="models-volume",
+                            mount_path="/models"
+                        )
+                    ],
                     resources=client.V1ResourceRequirements(
                         limits={"amd.com/gpu": "1"},
                         requests={"amd.com/gpu": "1"},
@@ -185,7 +197,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
 
     # Generate URL without port for reverse proxy
     # The nginx proxy will route /jupyter/{pod_name}/ to the actual NodePort
-    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/notebook.ipynb?token={token}"
+    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/workshop_agentic_ai_sglang.ipynb?token={token}"
     print("Jupyter Notebook URL:", url)
     
     # Store the mapping for nginx configuration

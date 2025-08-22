@@ -69,8 +69,8 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     container_port = 8888
     startup_command = (
     "pip install --no-cache-dir jupyter ihighlight && "
-    "git clone https://github.com/hubertlu-tw/sglang_amd_sf_meetup_workshop.git && "
-    "cd sglang_amd_sf_meetup_workshop && "
+    "git clone https://github.com/danielhua23/ai_sprint_shanghai.git && "
+    "cd ai_sprint_shanghai && cd workshop && "
     f"/root/.local/bin/jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
     f"--ServerApp.base_url=/jupyter/{pod_name}/ "
     f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
@@ -97,7 +97,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="henryx/haisgl:sglang-v0.5.0rc2-rocm630-mi30x-workshop",
+                    image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[
@@ -177,7 +177,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             v1.connect_get_namespaced_pod_exec,
             pod_name,
             "default",
-            command=["/root/.local/bin/jupyter", "notebook", "list"],
+            command=["jupyter", "notebook", "list"],
             stderr=True,
             stdin=False,
             stdout=True,
@@ -196,7 +196,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
 
     # Generate URL without port for reverse proxy
     # The nginx proxy will route /jupyter/{pod_name}/ to the actual NodePort
-    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/workshop_agentic_ai_sglang.ipynb?token={token}"
+    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/2_kernel_optimization_lab/0_triton_examples/triton_kernel_workshop.ipynb?token={token}"
     print("Jupyter Notebook URL:", url)
     
     # Store the mapping for nginx configuration

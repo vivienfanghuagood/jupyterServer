@@ -95,7 +95,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
                 client.V1Container(
                     name="jupyter",
                     image="vivienfanghua/amd_tutorial:latest",
-                    image_pull_policy="IfNotPresent",
+                    image_pull_policy="Always",
                     command=["/bin/sh", "-c", startup_command],
                     env=[
                     client.V1EnvVar(name="SHELL", value="/bin/bash")

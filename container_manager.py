@@ -74,9 +74,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
     container_port = 8888
     startup_command = (
         "pip install jupyter && "
-        "pip install ihighlight && "
-        "git clone --depth 1 https://github.com/danielhua23/ai_sprint_shanghai.git && "
-        "cd ai_sprint_shanghai && cd workshop && "
+        "cd /app && "
         f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root  "
         
     )
@@ -96,7 +94,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715",
+                    image="vivienfanghua/amd_tutorial:latest",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[

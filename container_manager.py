@@ -38,15 +38,13 @@ def start_container_and_get_jupyter_url():
     # 2. embed that port in the start-up command
     startup_command = (
         "pip install jupyter && "
-        "git clone --depth 1 https://github.com/indianspeedster/rocm-pytorch-notebooks.git && "
-        "cd rocm-pytorch-notebooks && "
-        f"jupyter lab triton_kernel_dev.ipynb --ip=0.0.0.0 --port={jupyter_port} --allow-root && "
-        "--NotebookApp.default_url='/lab/tree/triton_kernel_dev.ipynb'"
+        "cd /app && "
+        f"jupyter lab Qwen3-Embedding-8B.ipynb --ip=0.0.0.0 --port={jupyter_port} --allow-root"
     )
 
     try:
         container = client.containers.run(
-            image="rocm/vllm-dev:20250112",
+            image="vivienfanghua/amd_tutorial:latest",
             command=["/bin/sh", "-c", startup_command],
             detach=True,
             cap_add=["SYS_PTRACE"],

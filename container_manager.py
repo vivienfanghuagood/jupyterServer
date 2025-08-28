@@ -74,7 +74,7 @@ def start_pod_and_get_jupyter_url() -> str | None:
     container_port = 8888
     startup_command = (
         "pip install jupyter && "
-        "cd /app && "
+        "cd /app && git clone https://github.com/vivienfanghuagood/tutorials.git && cd tutorials && bash download.sh && "
         f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root  "
         
     )

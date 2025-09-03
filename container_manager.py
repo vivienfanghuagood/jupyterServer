@@ -174,6 +174,8 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     start = time.time()
     while time.time() - start < timeout:
         print("Checking if Jupyter server is up…")
+        import logging
+        logging.info("Checking if Jupyter server is up…")
         exec_out = stream.stream(
             v1.connect_get_namespaced_pod_exec,
             pod_name,

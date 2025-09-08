@@ -197,7 +197,7 @@ def start_pod_and_get_jupyter_url(image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715
 
     # Generate URL without port for reverse proxy
     # The nginx proxy will route /jupyter/{pod_name}/ to the actual NodePort
-    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/02-fused-softmax.ipynb?token={token}"
+    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/catalog.ipynb?token={token}"
     print("Jupyter Notebook URL:", url)
     
     # Store the mapping for nginx configuration

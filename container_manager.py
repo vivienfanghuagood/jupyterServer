@@ -69,8 +69,9 @@ def start_pod_and_get_jupyter_url(image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715
     container_port = 8888
     startup_command = (
     "pip install --no-cache-dir jupyter ihighlight && "
-    "git clone https://github.com/danielhua23/ai_sprint_shanghai.git && "
-    "cd ai_sprint_shanghai && cd workshop && "
+    # "git clone https://github.com/danielhua23/ai_sprint_shanghai.git && "
+    # "cd ai_sprint_shanghai && cd workshop && "
+    "cd /app && git clone https://github.com/vivienfanghuagood/tutorials.git && mkdir -p tutorials/jupyters && cd tutorials/jupyters && mv ../download.sh ./ && bash download.sh && "
     f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
     f"--ServerApp.base_url=/jupyter/{pod_name}/ "
     f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
@@ -196,7 +197,7 @@ def start_pod_and_get_jupyter_url(image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715
 
     # Generate URL without port for reverse proxy
     # The nginx proxy will route /jupyter/{pod_name}/ to the actual NodePort
-    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/2_kernel_optimization_lab/0_triton_examples/triton_kernel_workshop.ipynb?token={token}"
+    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/02-fused-softmax.ipynb?token={token}"
     print("Jupyter Notebook URL:", url)
     
     # Store the mapping for nginx configuration

@@ -72,7 +72,7 @@ def start_pod_and_get_jupyter_url(image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715
     # "git clone https://github.com/danielhua23/ai_sprint_shanghai.git && "
     # "cd ai_sprint_shanghai && cd workshop && "
     "cd /app && git clone https://github.com/vivienfanghuagood/tutorials.git && mkdir -p tutorials/jupyters && cd tutorials/jupyters && mv ../download.sh ./ && bash download.sh && "
-    "jupyter execute catalog.ipynb --inplace "
+    "jupyter execute catalog.ipynb --inplace &&"
     f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
     f"--ServerApp.base_url=/jupyter/{pod_name}/ "
     f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"

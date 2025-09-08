@@ -35,7 +35,7 @@ def get_node_gpu_counts() -> Dict[str, int]:
 
     return counts
 
-def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
+def start_pod_and_get_jupyter_url(image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715") -> tuple[str | None, str | None]:
     config.load_kube_config()
     v1 = client.CoreV1Api()
 
@@ -97,7 +97,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715",
+                    image=image,
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[

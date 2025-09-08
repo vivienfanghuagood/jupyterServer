@@ -196,9 +196,9 @@ def update_nginx_proxy():
     pass
 
 
-def launch_container(email: str):
+def launch_container(email: str, image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715"):
     """Launch a container for the given email."""
-    pod_name, jupyter_url = start_pod_and_get_jupyter_url()
+    pod_name, jupyter_url = start_pod_and_get_jupyter_url(image)
     if jupyter_url:
         update_session_url(email, jupyter_url, pod_name)
         log_container_start(email)
@@ -219,6 +219,7 @@ async def home(request: Request):
 async def launch(background_tasks: BackgroundTasks, request: Request):
     data = await request.json()
     email = data.get("email")
+    image = data.get("image", "rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715")
     if not email:
         return JSONResponse({"error": "email required"}, status_code=400)
 
@@ -227,7 +228,7 @@ async def launch(background_tasks: BackgroundTasks, request: Request):
         return JSONResponse({"url": existing_url})
 
     create_session(email)
-    background_tasks.add_task(launch_container, email)
+    background_tasks.add_task(launch_container, email, image)
     return JSONResponse({"message": "Pod is launching, please wait...", "email": email})
 
 

@@ -5,6 +5,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function startProcess() {
+    let image = document.getElementById("image-input").value.trim();
+    const selectedImage = document.getElementById("image-select").value;
+
+    // 优先使用用户手动输入，其次使用下拉选择
+    if (!image && selectedImage) {
+      image = selectedImage;
+    }
+
     const emailInput = document.getElementById('email-input');
     if (!emailInput || !emailInput.value) return;
     const email = emailInput.value;
@@ -25,7 +33,7 @@ function startProcess() {
     fetch('/launch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, image  })
     })
         .then(response => response.json())
         .then(data => {

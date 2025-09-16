@@ -101,7 +101,8 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[
-                    client.V1EnvVar(name="SHELL", value="/bin/bash")
+                    client.V1EnvVar(name="SHELL", value="/bin/bash"), 
+                    client.V1EnvVar(name="EXA_API_KEY", value="a6b74c67-4b93-4e79-b050-c0e61159c685"), 
                 ],
                     ports=[client.V1ContainerPort(container_port=container_port)],
                     volume_mounts=[

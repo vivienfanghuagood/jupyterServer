@@ -71,7 +71,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     "pip install --no-cache-dir jupyter ihighlight && "
     "git clone https://github.com/Mahdi-CV/amd-gpu-workshops && "
     "cd amd-gpu-workshops && cd notebooks && "
-    f"/root/.local/bin/jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
+    f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
     f"--ServerApp.base_url=/jupyter/{pod_name}/ "
     f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
 )

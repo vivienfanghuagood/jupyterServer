@@ -69,9 +69,15 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     container_port = 8888
     startup_command = (
     "pip install --no-cache-dir jupyter ihighlight && "
+<<<<<<< HEAD
     "git clone https://github.com/danielhua23/ai_sprint_shanghai.git && "
     "cd ai_sprint_shanghai && cd workshop && "
     f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
+=======
+    "git clone https://github.com/Mahdi-CV/amd-gpu-workshops && "
+    "cd amd-gpu-workshops && cd notebooks && "
+    f"/root/.local/bin/jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
+>>>>>>> 7d42448 (added stuff for tech media)
     f"--ServerApp.base_url=/jupyter/{pod_name}/ "
     f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
 )
@@ -97,7 +103,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715",
+                    image="rocm/7.0-preview:rocm7.0_preview_ubuntu_22.04_vllm_0.10.1_instinct_rc1",
                     image_pull_policy="IfNotPresent",
                     command=["/bin/sh", "-c", startup_command],
                     env=[
@@ -196,7 +202,7 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
 
     # Generate URL without port for reverse proxy
     # The nginx proxy will route /jupyter/{pod_name}/ to the actual NodePort
-    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/2_kernel_optimization_lab/0_triton_examples/triton_kernel_workshop.ipynb?token={token}"
+    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/austin_ws/austin_multi-agent.ipynb?token={token}"
     print("Jupyter Notebook URL:", url)
     
     # Store the mapping for nginx configuration

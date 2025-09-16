@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-jupyterserver
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: flask-jupyterserver
+  template:
+    metadata:
+      labels:
+        app: flask-jupyterserver
+    spec:
+      restartPolicy: Always
+      tolerations:
+        - key: "amd.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: flask-container
+          image: python:3.12-slim
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              apt update && apt install -y git curl gcc python3-dev libffi-dev libssl-dev && \
+              git clone https://github.com/vivienfanghuagood/jupyterServer.git && \
+              cd jupyterServer && \
+              git checkout china_ws_new && \
+              pip install --upgrade pip && \
+              pip install -r requirements.txt && \
+              export KUBECONFIG=/kube/config && \
+              uvicorn app:app --workers 4 --host 0.0.0.0 --port 5000
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: kubeconfig-volume
+              mountPath: /kube
+              readOnly: true
+          env:
+            - name: POSTGRES_HOST
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "flaskdb"
+            - name: POSTGRES_USER
+              value: "flaskuser"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+      volumes:
+        - name: kubeconfig-volume
+          configMap:
+            name: kubeconfig-cm

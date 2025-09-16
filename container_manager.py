@@ -69,9 +69,6 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
     container_port = 8888
     startup_command = (
     "pip install --no-cache-dir jupyter ihighlight && "
-    "git clone https://github.com/danielhua23/ai_sprint_shanghai.git && "
-    "cd ai_sprint_shanghai && cd workshop && "
-    f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
     "git clone https://github.com/Mahdi-CV/amd-gpu-workshops && "
     "cd amd-gpu-workshops && cd notebooks && "
     f"/root/.local/bin/jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "

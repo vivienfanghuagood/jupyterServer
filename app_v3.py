@@ -32,13 +32,6 @@ except Exception:
 # Configuration
 # -----------------------------------------------------------------------------
 
-# PostgreSQL connection (required)
-PGHOST = os.getenv("PGHOST", "localhost")
-PGPORT = int(os.getenv("PGPORT", "5432"))
-PGUSER = os.getenv("PGUSER", "postgres")
-PGPASSWORD = os.getenv("PGPASSWORD", "")
-PGDATABASE = os.getenv("PGDATABASE", "postgres")
-
 # Mock pod creation (for local/dev). Set to "0"/"false" in production and implement real start logic.
 MOCK_PODS = str(os.getenv("MOCK_PODS", "1")).lower() in ("1", "true", "yes")
 
@@ -55,10 +48,6 @@ K8S_NAMESPACE = os.getenv("K8S_NAMESPACE")  # required if you want to delete pod
 UID_COOKIE_NAME = os.getenv("UID_COOKIE_NAME", "uid")
 COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "Lax")   # 'Lax' | 'Strict' | 'None'
 COOKIE_SECURE = str(os.getenv("COOKIE_SECURE", "0")).lower() in ("1", "true", "yes")
-
-# Default container image for task creation
-DEFAULT_IMAGE = os.getenv("DEFAULT_IMAGE", "rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715")
-
 
 # -----------------------------------------------------------------------------
 # Database (PostgreSQL only)
@@ -364,40 +353,6 @@ def list_expired_temp_uids() -> List[Tuple[str, Optional[str]]]:
                 if expires_at and expires_at <= now_utc:
                     expired.append((uid, pod_name))
     return expired
-
-
-# -----------------------------------------------------------------------------
-# Kubernetes helpers (optional)
-# -----------------------------------------------------------------------------
-
-# def _load_k8s_core_v1():
-#     """
-#     Load Kubernetes client (in-cluster or local kubeconfig).
-#     """
-#     if k8s_client is None or k8s_config is None:
-#         raise RuntimeError("kubernetes Python client is not installed. Run: pip install kubernetes")
-#     try:
-#         k8s_config.load_incluster_config()
-#     except Exception:
-#         k8s_config.load_kube_config()
-#     return k8s_client.CoreV1Api()
-
-
-# def list_running_launcher_pods(prefix: str = "jupyter-launcher-") -> Set[str]:
-#     """
-#     List pod names across all namespaces where:
-#       - pod.metadata.name starts with the given prefix
-#       - pod.status.phase == 'Running'
-#     """
-#     v1 = _load_k8s_core_v1()
-#     pods = v1.list_pod_for_all_namespaces(watch=False)
-#     names: Set[str] = set()
-#     for p in pods.items:
-#         name = (p.metadata.name or "").strip()
-#         phase = (p.status.phase or "").strip().lower()
-#         if name.startswith(prefix) and phase == "running":
-#             names.add(name)
-#     return names
 
 
 # -----------------------------------------------------------------------------

@@ -15,7 +15,7 @@ import os
 import uuid
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, List, Set
+from typing import Optional, Tuple, List, Set, Dict
 
 import psycopg2
 from fastapi import FastAPI, Request, Query
@@ -669,6 +669,28 @@ async def route_notebook(request: Request, nb_name: str):
         )
 
     return resp
+
+
+@app.get("/video_svc/")
+def get_services_with_prefix(prefix: str = Query("videogen", description="Service name prefix")) -> List[Dict[str, str]]:
+    from kubernetes import client, config
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+    services = v1.list_service_for_all_namespaces(watch=False)
+
+    result = []
+    for svc in services.items:
+        if svc.metadata.name.startswith(prefix):
+            external_ips = svc.status.load_balancer.ingress
+            ip_list = [ip.ip for ip in external_ips] if external_ips else []
+            result.append({
+                "name": svc.metadata.name,
+                "namespace": svc.metadata.namespace,
+                "external_ips": ip_list
+            })
+
+    return result
+
 # -----------------------------------------------------------------------------
 # Entrypoint (run directly for local dev)
 # -----------------------------------------------------------------------------

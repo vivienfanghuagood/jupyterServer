@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: videogen
+  namespace: default
+  labels:
+    app: videogen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: videogen
+  template:
+    metadata:
+      labels:
+        app: videogen
+    spec:
+      nodeName: gpu-pool-fixed-26qv3
+      tolerations:
+        - key: "amd.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      hostIPC: true
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: "8Gi"
+        - name: model-dir
+          hostPath:
+            path: /mnt/models
+            type: Directory
+      containers:
+        - name: videogen
+          image: rocm/vllm:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: EXA_API_KEY
+              value: "2e495be7-891e-4b87-b5ab-38ea4a759a39"
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              pip install jupyter &&  jupyter lab --ip=0.0.0.0 --port=9000 --ServerApp.token='' --ServerApp.password='' --allow-root --ServerApp.open_browser=False --ServerApp.trust_xheaders=True
+          ports:
+            - containerPort: 9000
+            - containerPort: 8891
+          resources:
+            limits:
+              cpu: "28"
+              memory: 64Gi
+              amd.com/gpu: "1"
+            requests:
+              cpu: "20"
+              memory: 48Gi
+              amd.com/gpu: "1"
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            - name: model-dir
+              mountPath: /models
+
+---
+ 
+apiVersion: v1
+kind: Service
+metadata:
+  name: videogen-service
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: videogen
+  ports:
+    - name: videogen
+      port: 8890
+      targetPort: 9000
+    - name: another
+      port: 8891
+      targetPort: 8891

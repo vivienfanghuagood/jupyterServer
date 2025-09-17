@@ -277,11 +277,14 @@ def start_pod_and_get_jupyter_url(image: str) -> Tuple[str, str]:
 def launch_container(email: str, image: str = DEFAULT_IMAGE):
     """
     Launch a container for the given email (bootstrap record).
+    This follows the exact signature you provided.
+
     Steps:
       1) Start the pod and obtain its base Jupyter URL.
       2) Update the DB row identified by 'email' with (url, pod_name).
       3) Log the container start.
     """
+    from container_manager import start_pod_and_get_jupyter_url
     pod_name, jupyter_url = start_pod_and_get_jupyter_url(image)
     if jupyter_url:
         update_session_url(email, jupyter_url, pod_name)

@@ -26,11 +26,11 @@ spec:
               apt update && apt install -y git curl gcc python3-dev libffi-dev libssl-dev && \
               git clone https://github.com/vivienfanghuagood/jupyterServer.git && \
               cd jupyterServer && \
-              git checkout china_ws_new && \
+              git checkout pub_notebook && \
               pip install --upgrade pip && \
               pip install -r requirements.txt && \
               export KUBECONFIG=/kube/config && \
-              uvicorn app:app --workers 4 --host 0.0.0.0 --port 5000
+              uvicorn app_v2:app --workers 4 --host 0.0.0.0 --port 5000
           ports:
             - containerPort: 5000
           volumeMounts:

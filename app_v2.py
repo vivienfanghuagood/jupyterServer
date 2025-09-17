@@ -330,6 +330,134 @@ async def root():
     return {"status": "ok"}
 
 
+@app.post("/tasks/sync")
+async def sync_tasks(
+    prefix: str = Query("jupyter-launcher-", description="Pod name prefix to match")
+):
+    """
+    Sync DB tasks with Running Kubernetes pods whose names start with the given prefix.
+
+    Rules:
+      - If a running pod exists and a DB row exists -> reset email=NULL, assigned_at=NULL.
+      - If a running pod exists and no DB row exists -> insert a new row (idle).
+      - If a DB row exists but its pod_name is not in the running set -> delete that row.
+    """
+    from container_manager import list_running_launcher_pods
+    # 1) Fetch running pod names from k8s
+    try:
+        running: set[str] = list_running_launcher_pods(prefix=prefix)
+    except Exception as e:
+        return JSONResponse({"error": f"Kubernetes API error: {e}"}, status_code=500)
+
+    # 2) Fetch existing pod_names from DB
+    if USE_POSTGRES:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT pod_name FROM sessions WHERE pod_name IS NOT NULL")
+                rows = cur.fetchall()
+                existing: set[str] = {r[0] for r in rows if r and r[0]}
+    else:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT pod_name FROM sessions WHERE pod_name IS NOT NULL")
+        rows = cur.fetchall()
+        existing = {r[0] for r in rows if r and r[0]}
+        conn.close()
+
+    # 3) Compute delta sets
+    to_insert = sorted(running - existing)
+    to_delete = sorted(existing - running)
+    to_reset  = sorted(running & existing)
+
+    inserted = 0
+    deleted  = 0
+    reset    = 0
+
+    # 4) Apply changes to DB
+    if USE_POSTGRES:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                # Reset email/assigned_at for pods that are running and already exist in DB
+                if to_reset:
+                    placeholders = ", ".join(["%s"] * len(to_reset))
+                    cur.execute(
+                        f"UPDATE sessions SET email = NULL, assigned_at = NULL WHERE pod_name IN ({placeholders})",
+                        tuple(to_reset),
+                    )
+                    reset = cur.rowcount
+
+                # Insert missing rows for running pods (mark idle)
+                for name in to_insert:
+                    # Use compose_url(name) for convenience; adjust if you prefer NULL
+                    cur.execute(
+                        """
+                        INSERT INTO sessions(pod_name, url, email, assigned_at)
+                        VALUES (%s, %s, NULL, NULL)
+                        ON CONFLICT (pod_name) DO NOTHING
+                        """,
+                        (name, compose_url(name)),
+                    )
+                    # rowcount is 1 if inserted, 0 if conflict ignored
+                    inserted += cur.rowcount
+
+                # Delete stale rows that no longer exist in Kubernetes
+                if to_delete:
+                    placeholders = ", ".join(["%s"] * len(to_delete))
+                    cur.execute(
+                        f"DELETE FROM sessions WHERE pod_name IN ({placeholders})",
+                        tuple(to_delete),
+                    )
+                    deleted = cur.rowcount
+            conn.commit()
+    else:
+        conn = get_conn()
+        cur = conn.cursor()
+        try:
+            # Reset email/assigned_at for pods that are running and already exist in DB
+            if to_reset:
+                placeholders = ", ".join(["?"] * len(to_reset))
+                cur.execute(
+                    f"UPDATE sessions SET email = NULL, assigned_at = NULL WHERE pod_name IN ({placeholders})",
+                    tuple(to_reset),
+                )
+                reset = cur.rowcount
+
+            # Insert missing rows (SQLite: use INSERT OR IGNORE for idempotency)
+            for name in to_insert:
+                cur.execute(
+                    "INSERT OR IGNORE INTO sessions(pod_name, url, email, assigned_at) VALUES (?, ?, NULL, NULL)",
+                    (name, compose_url(name)),
+                )
+                # rowcount in SQLite for INSERT OR IGNORE can be 1 or 0 depending on conflict
+                if cur.rowcount and cur.rowcount > 0:
+                    inserted += 1
+
+            # Delete stale rows
+            if to_delete:
+                placeholders = ", ".join(["?"] * len(to_delete))
+                cur.execute(
+                    f"DELETE FROM sessions WHERE pod_name IN ({placeholders})",
+                    tuple(to_delete),
+                )
+                deleted = cur.rowcount
+
+            conn.commit()
+        finally:
+            conn.close()
+
+    # 5) Return summary
+    return JSONResponse({
+        "prefix": prefix,
+        "running_count": len(running),
+        "db_existing_count": len(existing),
+        "inserted": inserted,
+        "reset": reset,
+        "deleted": deleted,
+        "running_pods_synced": sorted(list(running)),
+        "deleted_pods": to_delete,
+    })
+
+
 @app.get("/{nb_name}.ipynb")
 async def route_notebook(request: Request, nb_name: str):
     """
@@ -366,6 +494,49 @@ async def route_notebook(request: Request, nb_name: str):
 
     url = compose_url(pod_name, nb_name)
     return RedirectResponse(url=url, status_code=302)
+
+
+@app.get("/tasks")
+async def list_tasks():
+    """
+    Return all tasks from DB (ordered by created_at DESC).
+    """
+    if USE_POSTGRES:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, pod_name, url, email, created_at, assigned_at FROM sessions ORDER BY created_at DESC"
+                )
+                rows = cur.fetchall()
+                data = []
+                for r in rows:
+                    data.append({
+                        "id": r[0],
+                        "pod_name": r[1],
+                        "url": r[2],
+                        "email": r[3],
+                        "created_at": r[4].isoformat() if r[4] else None,
+                        "assigned_at": r[5].isoformat() if r[5] else None,
+                    })
+    else:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, pod_name, url, email, created_at, assigned_at FROM sessions ORDER BY created_at DESC"
+        )
+        rows = cur.fetchall()
+        conn.close()
+        data = []
+        for r in rows:
+            data.append({
+                "id": r[0],
+                "pod_name": r[1],
+                "url": r[2],
+                "email": r[3],
+                "created_at": r[4],      # SQLite returns text for timestamps
+                "assigned_at": r[5],
+            })
+    return JSONResponse({"tasks": data, "count": len(data)})
 
 
 @app.post("/tasks/add")

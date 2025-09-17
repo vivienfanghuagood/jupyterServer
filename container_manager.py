@@ -223,6 +223,24 @@ def start_pod_and_get_jupyter_url(image="rocm/vllm:rocm6.4.1_vllm_0.9.1_20250715
     return pod_name, url
 
 
+def list_running_launcher_pods(prefix: str = "jupyter-launcher-") -> set[str]:
+    """
+    List names of pods across all namespaces where:
+      - pod.metadata.name starts with the given prefix
+      - pod.status.phase == 'Running'
+    """
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+    pods = v1.list_pod_for_all_namespaces(watch=False)
+    names: set[str] = set()
+    for p in pods.items:
+        name = (p.metadata.name or "").strip()
+        phase = (p.status.phase or "").strip().lower()
+        if name.startswith(prefix) and phase == "running":
+            names.add(name)
+    return names
+
+
 # ---------------- Run ----------------------
 if __name__ == "__main__":
     start_pod_and_get_jupyter_url()

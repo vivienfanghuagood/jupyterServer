@@ -240,6 +240,19 @@ def list_running_launcher_pods(prefix: str = "jupyter-launcher-") -> set[str]:
             names.add(name)
     return names
 
+def maybe_delete_pod(pod_name: str):
+    """
+    Delete a Kubernetes Pod by name in the configured namespace.
+    Only used when TTL_CLEANUP_MODE='delete' and K8S_DELETE_ON_EXPIRE=true.
+    """
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+    try:
+        v1.delete_namespaced_pod(name=pod_name, namespace="default")
+    except Exception:
+        # Ignore errors during cleanup
+        pass
+
 
 # ---------------- Run ----------------------
 if __name__ == "__main__":

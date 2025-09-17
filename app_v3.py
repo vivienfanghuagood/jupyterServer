@@ -16,6 +16,7 @@ import uuid
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Set, Dict
+from pydantic import BaseModel
 
 import psycopg2
 from fastapi import FastAPI, Request, Query
@@ -671,7 +672,13 @@ async def route_notebook(request: Request, nb_name: str):
     return resp
 
 
-@app.get("/video_svc/")
+class ServiceInfo(BaseModel):
+    name: str
+    namespace: str
+    external_ips: List[str]
+
+
+@app.get("/video_svc/", response_model=List[ServiceInfo])
 def get_services_with_prefix(prefix: str = Query("videogen", description="Service name prefix")) -> List[Dict[str, str]]:
     from kubernetes import client, config
     config.load_kube_config()

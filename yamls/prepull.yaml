@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: prepull-image
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: prepull-image
+  template:
+    metadata:
+      labels:
+        app: prepull-image
+      annotations:
+        image-pull-timestamp: "{{ .Release.Time }}"  # Optional: Replace with a timestamp or hash via templating or manual update
+    spec:
+      nodeSelector:
+        amd.com/gpu: "8"  # Target nodes with AMD GPUs
+      tolerations:
+        - key: "amd.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - operator: "Exists"
+      containers:
+        - name: prepuller
+          image: vivienfanghua/amd_tutorial  # Replace with your private image
+          command: ["sleep", "3600"]
+          imagePullPolicy: Always
+      imagePullSecrets:
+        - name: regcred2

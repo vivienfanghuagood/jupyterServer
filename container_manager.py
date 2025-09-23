@@ -3,12 +3,34 @@ import subprocess
 import re
 import socket
 import random
-from typing import Dict
+import json
+import os
+from typing import Dict, Optional, Tuple
+from dataclasses import dataclass
 
 from kubernetes import client, config, stream
 
-# ---------- helper ----------------------------------------------------------
+# ---------- Configuration ----------------------------------------------------------
+PUBLIC_IP = "129.212.190.193"
+CONTAINER_PORT = 8888
+DEFAULT_IMAGE = "rocm/7.0-preview:rocm7.0_preview_ubuntu_22.04_vllm_0.10.1_instinct_rc1"
+POD_TIMEOUT = 120
+CHECK_INTERVAL = 5
+MAPPING_FILE = "/tmp/jupyter_pod_mappings.json"
+
+@dataclass
+class PodConfig:
+    """Configuration for a Jupyter pod"""
+    name: str
+    startup_command: str
+    image: str = DEFAULT_IMAGE
+    container_port: int = CONTAINER_PORT
+    gpu_limit: str = "1"
+    gpu_request: str = "1"
+
+# ---------- Helper Functions -------------------------------------------------------
 def get_free_port(low: int = 10000, high: int = 60000, max_tries: int = 100) -> int:
+    """Find a free port in the specified range"""
     for _ in range(max_tries):
         port = random.randint(low, high)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -16,12 +38,8 @@ def get_free_port(low: int = 10000, high: int = 60000, max_tries: int = 100) -> 
                 return port
     raise RuntimeError("Could not find a free port")
 
-# ---------- public IP -------------------------------------------------------
-# Use hardcoded IP instead of dynamic detection
-public_ip = "129.212.190.193"
-
-# ---------- main ------------------------------------------------------------
 def get_node_gpu_counts() -> Dict[str, int]:
+    """Get available GPU counts for each node"""
     config.load_kube_config()
     v1 = client.CoreV1Api()
     counts: Dict[str, int] = {}
@@ -35,10 +53,9 @@ def get_node_gpu_counts() -> Dict[str, int]:
 
     return counts
 
-def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
-    config.load_kube_config()
+def find_available_gpu_node() -> Optional[str]:
+    """Find a node with available GPU capacity"""
     v1 = client.CoreV1Api()
-
     node_gpu = get_node_gpu_counts()
     pods = v1.list_pod_for_all_namespaces().items
 
@@ -54,33 +71,37 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
                 if gpu:
                     usage[node] += int(gpu)
 
-    chosen = None
     for node, total in node_gpu.items():
         used = usage.get(node, 0)
         if total - used > 0:
-            chosen = node
-            break
+            return node
 
-    if not chosen:
-        print("No node with free GPU capacity found.")
-        return None, "/no_gpu"
+    return None
 
-    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
-    container_port = 8888
-    startup_command = (
-    "pip install --no-cache-dir jupyter ihighlight && "
-    "git clone https://github.com/Mahdi-CV/amd-gpu-workshops && "
-    "cd amd-gpu-workshops && cd notebooks && "
-    f"jupyter lab --ip=0.0.0.0 --port={container_port} --allow-root "
-    f"--ServerApp.base_url=/jupyter/{pod_name}/ "
-    f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
-)
+def save_pod_mapping(pod_name: str, node_port: int, token: str, **extra_info):
+    """Save pod mapping information to file"""
+    mappings = {}
+    if os.path.exists(MAPPING_FILE):
+        with open(MAPPING_FILE, 'r') as f:
+            mappings = json.load(f)
 
-    pod = client.V1Pod(
-        metadata=client.V1ObjectMeta(name=pod_name),
+    mappings[pod_name] = {
+        "node_port": node_port,
+        "token": token,
+        "public_ip": PUBLIC_IP,
+        **extra_info
+    }
+
+    with open(MAPPING_FILE, 'w') as f:
+        json.dump(mappings, f, indent=2)
+
+# ---------- Kubernetes Operations --------------------------------------------------
+def create_pod(pod_config: PodConfig) -> client.V1Pod:
+    """Create a Kubernetes pod with the given configuration"""
+    return client.V1Pod(
+        metadata=client.V1ObjectMeta(name=pod_config.name),
         spec=client.V1PodSpec(
-            #node_name=chosen,
-             tolerations=[
+            tolerations=[
                 client.V1Toleration(
                     key="amd.com/gpu",
                     operator="Exists",
@@ -97,14 +118,14 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
             containers=[
                 client.V1Container(
                     name="jupyter",
-                    image="rocm/7.0-preview:rocm7.0_preview_ubuntu_22.04_vllm_0.10.1_instinct_rc1",
+                    image=pod_config.image,
                     image_pull_policy="IfNotPresent",
-                    command=["/bin/sh", "-c", startup_command],
+                    command=["/bin/sh", "-c", pod_config.startup_command],
                     env=[
-                    client.V1EnvVar(name="SHELL", value="/bin/bash"), 
-                    client.V1EnvVar(name="EXA_API_KEY", value="a6b74c67-4b93-4e79-b050-c0e61159c685"), 
-                ],
-                    ports=[client.V1ContainerPort(container_port=container_port)],
+                        client.V1EnvVar(name="SHELL", value="/bin/bash"),
+                        client.V1EnvVar(name="EXA_API_KEY", value="a6b74c67-4b93-4e79-b050-c0e61159c685"),
+                    ],
+                    ports=[client.V1ContainerPort(container_port=pod_config.container_port)],
                     volume_mounts=[
                         client.V1VolumeMount(
                             name="models-volume",
@@ -112,8 +133,8 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
                         )
                     ],
                     resources=client.V1ResourceRequirements(
-                        limits={"amd.com/gpu": "1"},
-                        requests={"amd.com/gpu": "1"},
+                        limits={"amd.com/gpu": pod_config.gpu_limit},
+                        requests={"amd.com/gpu": pod_config.gpu_request},
                     ),
                     security_context=client.V1SecurityContext(
                         capabilities=client.V1Capabilities(add=["SYS_PTRACE"]),
@@ -124,34 +145,10 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
         ),
     )
 
-    v1.create_namespaced_pod(namespace="default", body=pod)
-    print(f"Pod {pod_name} created on {chosen}. Waiting for Jupyter…")
-
-    timeout, interval = 120, 5
-    start = time.time()
-    while time.time() - start < timeout:
-        p = v1.read_namespaced_pod(pod_name, "default")
-        if p.status.phase == "Running":
-            break
-        if p.status.phase == "Failed":
-            print("Pod failed to start.")
-            return pod_name, "/no_gpu"
-        if p.status.phase == "UnexpectedAdmissionError":
-            print("Pod admission error, likely due to insufficient resources.")
-            return pod_name, "/no_gpu"
-        time.sleep(interval)
-
-    # Label the pod so the service can select it
-    v1.patch_namespaced_pod(
-        name=pod_name,
-        namespace="default",
-        body={"metadata": {"labels": {"name": pod_name}}}
-    )
-
+def create_service(pod_name: str, container_port: int) -> client.V1Service:
+    """Create a NodePort service for the pod"""
     service_name = f"{pod_name}-svc"
-    #node_port = random.randint(30000, 32767)
-
-    service = client.V1Service(
+    return client.V1Service(
         metadata=client.V1ObjectMeta(name=service_name),
         spec=client.V1ServiceSpec(
             type="NodePort",
@@ -161,17 +158,27 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
                     name="jupyter",
                     port=container_port,
                     target_port=container_port,
-                    #node_port=node_port,
                     protocol="TCP",
                 )
             ],
         ),
     )
-    service = v1.create_namespaced_service(namespace="default", body=service)
-    node_port = service.spec.ports[0].node_port
-    print(f"NodePort service {service_name} created on port {node_port}.")
 
-    token = None
+def wait_for_pod_ready(v1: client.CoreV1Api, pod_name: str, timeout: int = POD_TIMEOUT) -> bool:
+    """Wait for a pod to be ready"""
+    start = time.time()
+    while time.time() - start < timeout:
+        p = v1.read_namespaced_pod(pod_name, "default")
+        if p.status.phase == "Running":
+            return True
+        if p.status.phase in ["Failed", "UnexpectedAdmissionError"]:
+            print(f"Pod {pod_name} failed to start: {p.status.phase}")
+            return False
+        time.sleep(CHECK_INTERVAL)
+    return False
+
+def get_jupyter_token(v1: client.CoreV1Api, pod_name: str, timeout: int = POD_TIMEOUT) -> Optional[str]:
+    """Extract Jupyter token from running pod"""
     start = time.time()
     while time.time() - start < timeout:
         exec_out = stream.stream(
@@ -187,41 +194,109 @@ def start_pod_and_get_jupyter_url() -> tuple[str | None, str | None]:
         )
         m = re.search(r"\?token=([^\s&]+)", exec_out)
         if m:
-            token = m.group(1)
-            break
-        time.sleep(interval)
+            return m.group(1)
+        time.sleep(CHECK_INTERVAL)
+    return None
 
+def launch_jupyter_pod(pod_config: PodConfig, **extra_info) -> Tuple[Optional[str], Optional[str]]:
+    """Generic function to launch a Jupyter pod with given configuration"""
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+
+    # Find available GPU node
+    chosen_node = find_available_gpu_node()
+    if not chosen_node:
+        print("No node with free GPU capacity found.")
+        return None, "/no_gpu"
+
+    # Create pod
+    pod = create_pod(pod_config)
+    v1.create_namespaced_pod(namespace="default", body=pod)
+    print(f"Pod {pod_config.name} created on {chosen_node}. Waiting for Jupyter...")
+
+    # Wait for pod to be ready
+    if not wait_for_pod_ready(v1, pod_config.name):
+        return pod_config.name, "/no_gpu"
+
+    # Label the pod for service selection
+    v1.patch_namespaced_pod(
+        name=pod_config.name,
+        namespace="default",
+        body={"metadata": {"labels": {"name": pod_config.name}}}
+    )
+
+    # Create service
+    service = create_service(pod_config.name, pod_config.container_port)
+    service = v1.create_namespaced_service(namespace="default", body=service)
+    node_port = service.spec.ports[0].node_port
+    print(f"NodePort service created on port {node_port}.")
+
+    # Get Jupyter token
+    token = get_jupyter_token(v1, pod_config.name)
     if not token:
         print("Jupyter server did not come up in time.")
-        return pod_name, None
+        return pod_config.name, None
 
-    # Generate URL without port for reverse proxy
-    # The nginx proxy will route /jupyter/{pod_name}/ to the actual NodePort
-    url = f"http://amddevcloud.com/jupyter/{pod_name}/lab/tree/austin_ws/austin_multi-agent.ipynb?token={token}"
+    # Build URL based on extra_info
+    if "notebook_path" in extra_info:
+        url = f"http://amddevcloud.com/jupyter/{pod_config.name}/lab/tree/{extra_info['notebook_path']}?token={token}"
+    else:
+        # Default path for existing workshop
+        url = f"http://amddevcloud.com/jupyter/{pod_config.name}/lab/tree/austin_ws/austin_multi-agent.ipynb?token={token}"
+
     print("Jupyter Notebook URL:", url)
-    
-    # Store the mapping for nginx configuration
-    import json
-    import os
-    
-    mapping_file = "/tmp/jupyter_pod_mappings.json"
-    mappings = {}
-    if os.path.exists(mapping_file):
-        with open(mapping_file, 'r') as f:
-            mappings = json.load(f)
-    
-    mappings[pod_name] = {
-        "node_port": node_port,
-        "token": token,
-        "public_ip": public_ip
+
+    # Save mapping
+    save_pod_mapping(pod_config.name, node_port, token, **extra_info)
+
+    return pod_config.name, url
+
+# ---------- Public API Functions ---------------------------------------------------
+def start_pod_and_get_jupyter_url() -> Tuple[Optional[str], Optional[str]]:
+    """Start a pod with the default AMD GPU workshop"""
+    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
+    startup_command = (
+        "pip install --no-cache-dir jupyter ihighlight && "
+        "git clone https://github.com/Mahdi-CV/amd-gpu-workshops && "
+        "cd amd-gpu-workshops && cd notebooks && "
+        f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
+        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
+        f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
+    )
+
+    pod_config = PodConfig(
+        name=pod_name,
+        startup_command=startup_command
+    )
+
+    return launch_jupyter_pod(pod_config)
+
+def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path: str) -> Tuple[Optional[str], Optional[str]]:
+    """Start a pod with a specific GitHub repository cloned and open the specified notebook"""
+    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
+    github_url = f"https://github.com/{owner}/{repo}.git"
+
+    startup_command = (
+        f"pip install --no-cache-dir jupyter ihighlight && "
+        f"git clone -b {branch} {github_url} /workspace/{repo} && "
+        f"cd /workspace/{repo} && "
+        f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
+        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
+        f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
+    )
+
+    pod_config = PodConfig(
+        name=pod_name,
+        startup_command=startup_command
+    )
+
+    extra_info = {
+        "repo": f"{owner}/{repo}",
+        "notebook_path": notebook_path
     }
-    
-    with open(mapping_file, 'w') as f:
-        json.dump(mappings, f, indent=2)
-    
-    return pod_name, url
 
+    return launch_jupyter_pod(pod_config, **extra_info)
 
-# ---------------- Run ----------------------
+# ---------- Main -------------------------------------------------------------------
 if __name__ == "__main__":
     start_pod_and_get_jupyter_url()

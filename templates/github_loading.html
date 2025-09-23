@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading GitHub Notebook - AMD Dev Cloud</title>
+  <style>
+    /* Reset & Base */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f4f9;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* Loading Container */
+    #loading-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      max-width: 500px;
+      width: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+
+    /* Logo */
+    #logo {
+      width: 120px;
+      margin-bottom: 20px;
+      transition: transform .3s;
+    }
+
+    /* Title */
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #20232a;
+      margin-bottom: 20px;
+    }
+
+    /* Repository Info */
+    .repo-info {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 25px;
+      text-align: left;
+    }
+    .repo-info h3 {
+      color: #5561FF;
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+    }
+    .repo-info p {
+      color: #666;
+      font-size: 0.9rem;
+      margin: 5px 0;
+      word-break: break-all;
+    }
+    .repo-info .repo-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    /* Status Message */
+    #status-message {
+      color: #666;
+      font-size: 1rem;
+      margin-bottom: 20px;
+      min-height: 24px;
+    }
+
+    /* Progress Bar */
+    #progress-container {
+      background: #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 30px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #5561FF, #34D1BF);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      transition: width .4s ease;
+    }
+
+    /* Loading Steps */
+    .loading-steps {
+      text-align: left;
+      margin-top: 20px;
+      padding: 15px;
+      background: #fafbfc;
+      border-radius: 8px;
+    }
+    .loading-steps h4 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      color: #666;
+      font-size: 0.85rem;
+    }
+    .step-icon {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .step.pending .step-icon {
+      background: #e0e0e0;
+      color: #999;
+    }
+    .step.active .step-icon {
+      background: #34D1BF;
+      color: white;
+      animation: pulse 1.5s infinite;
+    }
+    .step.completed .step-icon {
+      background: #4CAF50;
+      color: white;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    /* Error Message */
+    .error-message {
+      background: #fee;
+      border: 1px solid #fcc;
+      color: #c33;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-container">
+    <img id="logo" src="{{ url_for('static', path='image.png') }}" alt="AMD">
+    <h1>Launching GitHub Notebook</h1>
+
+    <div class="repo-info">
+      <h3>Repository Details</h3>
+      <p><span class="repo-name">Repository:</span> {{ owner }}/{{ repo }}</p>
+      <p><span class="repo-name">Branch:</span> {{ branch }}</p>
+      {% if notebook_path %}
+      <p><span class="repo-name">Notebook:</span> {{ notebook_path }}</p>
+      {% endif %}
+    </div>
+
+    <div id="status-message">Initializing container...</div>
+
+    <div id="progress-container">
+      <div id="progress-bar">0%</div>
+    </div>
+
+    <div class="loading-steps">
+      <h4>Progress</h4>
+      <div class="step" id="step-gpu">
+        <span class="step-icon pending">1</span>
+        <span>Allocating GPU resources</span>
+      </div>
+      <div class="step" id="step-container">
+        <span class="step-icon pending">2</span>
+        <span>Starting container</span>
+      </div>
+      <div class="step" id="step-clone">
+        <span class="step-icon pending">3</span>
+        <span>Cloning repository</span>
+      </div>
+      <div class="step" id="step-jupyter">
+        <span class="step-icon pending">4</span>
+        <span>Starting Jupyter Lab</span>
+      </div>
+      <div class="step" id="step-ready">
+        <span class="step-icon pending">5</span>
+        <span>Opening notebook</span>
+      </div>
+    </div>
+
+    <div class="error-message" id="error-message"></div>
+  </div>
+
+  <script>
+    // GitHub launch tracking data
+    const launchData = {
+      owner: "{{ owner }}",
+      repo: "{{ repo }}",
+      branch: "{{ branch }}",
+      notebook_path: "{{ notebook_path }}",
+      session_id: "{{ session_id }}"
+    };
+
+    // Progress tracking
+    let progress = 0;
+    let progressInterval;
+    let currentStep = 0;
+    const steps = ['gpu', 'container', 'clone', 'jupyter', 'ready'];
+    const statusMessages = [
+      'Allocating GPU resources...',
+      'Starting container...',
+      'Cloning repository from GitHub...',
+      'Starting Jupyter Lab...',
+      'Preparing notebook...'
+    ];
+
+    // Start the launch process
+    window.addEventListener('DOMContentLoaded', () => {
+      startGitHubLaunch();
+    });
+
+    function startGitHubLaunch() {
+      // Start progress animation
+      simulateProgress();
+      updateStep(0);
+
+      // Launch the container
+      fetch('/api/launch_github', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          owner: launchData.owner,
+          repo: launchData.repo,
+          branch: launchData.branch,
+          notebook_path: launchData.notebook_path,
+          session_id: launchData.session_id
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          showError(data.error);
+        } else {
+          // Start polling for completion
+          pollForCompletion();
+        }
+      })
+      .catch(error => {
+        showError('Failed to start container: ' + error);
+      });
+    }
+
+    function simulateProgress() {
+      progressInterval = setInterval(() => {
+        if (progress < 90) {
+          progress += 1;
+          updateProgressBar(progress);
+
+          // Update steps based on progress
+          if (progress > 20 && currentStep < 1) updateStep(1);
+          if (progress > 40 && currentStep < 2) updateStep(2);
+          if (progress > 60 && currentStep < 3) updateStep(3);
+          if (progress > 80 && currentStep < 4) updateStep(4);
+        }
+      }, 300);
+    }
+
+    function updateProgressBar(percent) {
+      const progressBar = document.getElementById('progress-bar');
+      progressBar.style.width = percent + '%';
+      progressBar.innerText = percent + '%';
+    }
+
+    function updateStep(stepIndex) {
+      currentStep = stepIndex;
+
+      // Update status message
+      document.getElementById('status-message').innerText = statusMessages[stepIndex];
+
+      // Update step indicators
+      steps.forEach((step, index) => {
+        const stepElement = document.getElementById('step-' + step);
+        const icon = stepElement.querySelector('.step-icon');
+
+        if (index < stepIndex) {
+          stepElement.className = 'step completed';
+          icon.innerText = '✓';
+        } else if (index === stepIndex) {
+          stepElement.className = 'step active';
+        } else {
+          stepElement.className = 'step pending';
+        }
+      });
+    }
+
+    function pollForCompletion() {
+      fetch(`/api/github_status/${launchData.session_id}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'ready' && data.url) {
+            // Complete the progress
+            clearInterval(progressInterval);
+            updateProgressBar(100);
+            updateStep(4);
+
+            // Mark last step as completed
+            setTimeout(() => {
+              document.getElementById('step-ready').className = 'step completed';
+              document.getElementById('step-ready').querySelector('.step-icon').innerText = '✓';
+              document.getElementById('status-message').innerText = 'Redirecting to notebook...';
+
+              // Redirect to Jupyter
+              setTimeout(() => {
+                window.location.href = data.url;
+              }, 1000);
+            }, 500);
+          } else if (data.status === 'error') {
+            showError(data.message || 'Failed to start container');
+          } else {
+            // Continue polling
+            setTimeout(pollForCompletion, 2000);
+          }
+        })
+        .catch(error => {
+          console.error('Polling error:', error);
+          setTimeout(pollForCompletion, 3000);
+        });
+    }
+
+    function showError(message) {
+      clearInterval(progressInterval);
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.innerText = message;
+      errorDiv.style.display = 'block';
+      document.getElementById('status-message').innerText = 'Launch failed';
+    }
+  </script>
+</body>
+</html>

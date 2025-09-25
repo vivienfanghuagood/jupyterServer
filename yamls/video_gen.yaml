@@ -75,5 +75,5 @@ spec:
       port: 8890
       targetPort: 9000
     - name: another
-      port: 8891
-      targetPort: 8891
+      port: 8188
+      targetPort: 8188

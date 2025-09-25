@@ -23,7 +23,7 @@ spec:
         - operator: "Exists"
       containers:
         - name: prepuller
-          image: vivienfanghua/amd_tutorial  # Replace with your private image
+          image: vivienfanghua/amd_tutorial:unsloth  # Replace with your private image
           command: ["sleep", "3600"]
           imagePullPolicy: Always
       imagePullSecrets:

@@ -269,6 +269,13 @@ async def home(request: Request):
     """Render the home page"""
     return templates.TemplateResponse("index.html", {"request": request})
 
+SVG_PATH = Path("amd.svg")
+
+@app.get("/icon", response_class=HTMLResponse)
+async def serve_svg():
+    svg_content = SVG_PATH.read_text(encoding="utf-8")
+    return Response(content=svg_content, media_type="image/svg+xml")
+
 @app.get("/no_gpu", response_class=HTMLResponse)
 async def no_gpu(request: Request):
     """Render the GPU unavailable page"""

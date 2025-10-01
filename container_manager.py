@@ -13,7 +13,7 @@ from kubernetes import client, config, stream
 # ---------- Configuration ----------------------------------------------------------
 PUBLIC_IP = "129.212.190.193"
 CONTAINER_PORT = 8888
-DEFAULT_IMAGE = "rocm/7.0-preview:rocm7.0_preview_ubuntu_22.04_vllm_0.10.1_instinct_rc1"
+DEFAULT_IMAGE = "vivienfanghua/amd_tutorial:unsloth"
 POD_TIMEOUT = 120
 CHECK_INTERVAL = 5
 MAPPING_FILE = "/tmp/jupyter_pod_mappings.json"

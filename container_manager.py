@@ -239,7 +239,7 @@ def launch_jupyter_pod(pod_config: PodConfig, **extra_info) -> Tuple[Optional[st
 
     # Build URL based on extra_info
     if "notebook_path" in extra_info:
-        url = f"http://129.212.179.141:32423/jupyter/{pod_config.name}/lab/tree/{extra_info['notebook_path']}?token={token}"
+        url = f"http://129.212.179.141:{node_port}/jupyter/{pod_config.name}/lab/tree/{extra_info['notebook_path']}?token={token}"
     else:
         # Default path for existing workshop
         url = f"http://amddevcloud.com/jupyter/{pod_config.name}/lab/tree/austin_ws/austin_multi-agent.ipynb?token={token}"

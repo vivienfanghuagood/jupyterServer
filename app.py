@@ -274,6 +274,7 @@ SVG_PATH = Path("amd.svg")
 
 @app.get("/icon", response_class=HTMLResponse)
 async def serve_svg():
+    from fastapi.responses import HTMLResponse, Response
     svg_content = SVG_PATH.read_text(encoding="utf-8")
     return Response(content=svg_content, media_type="image/svg+xml")
 

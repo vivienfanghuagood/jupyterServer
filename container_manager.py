@@ -9,14 +9,19 @@ from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 
 from kubernetes import client, config, stream
+from kubernetes.config.config_exception import ConfigException
 
 # ---------- Configuration ----------------------------------------------------------
 PUBLIC_IP = "129.212.190.193"
 CONTAINER_PORT = 8888
-DEFAULT_IMAGE = "rocm/7.0-preview:rocm7.0_preview_ubuntu_22.04_vllm_0.10.1_instinct_rc1"
+DEFAULT_IMAGE = os.getenv("DEFAULT_IMAGE", "rocm/7.0-preview:rocm7.0_preview_ubuntu_22.04_vllm_0.10.1_instinct_rc1")
 POD_TIMEOUT = 120
 CHECK_INTERVAL = 5
 MAPPING_FILE = "/tmp/jupyter_pod_mappings.json"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")  # Personal Access Token for private repos
+
+# Global flag to track if Kubernetes config has been loaded
+_k8s_config_loaded = False
 
 @dataclass
 class PodConfig:
@@ -29,6 +34,31 @@ class PodConfig:
     gpu_request: str = "1"
 
 # ---------- Helper Functions -------------------------------------------------------
+def load_kubernetes_config():
+    """
+    Load Kubernetes configuration.
+    Try in-cluster config first (when running inside a K8s cluster),
+    then fall back to kubeconfig file (for local development).
+    Only loads once per process to avoid configuration errors.
+    """
+    global _k8s_config_loaded
+
+    if _k8s_config_loaded:
+        return
+
+    try:
+        config.load_incluster_config()
+        print("Loaded in-cluster Kubernetes configuration")
+        _k8s_config_loaded = True
+    except ConfigException:
+        try:
+            config.load_kube_config()
+            print("Loaded Kubernetes configuration from kubeconfig")
+            _k8s_config_loaded = True
+        except ConfigException as e:
+            print(f"Failed to load Kubernetes configuration: {e}")
+            raise
+
 def get_free_port(low: int = 10000, high: int = 60000, max_tries: int = 100) -> int:
     """Find a free port in the specified range"""
     for _ in range(max_tries):
@@ -40,7 +70,7 @@ def get_free_port(low: int = 10000, high: int = 60000, max_tries: int = 100) -> 
 
 def get_node_gpu_counts() -> Dict[str, int]:
     """Get available GPU counts for each node"""
-    config.load_kube_config()
+    load_kubernetes_config()
     v1 = client.CoreV1Api()
     counts: Dict[str, int] = {}
 
@@ -200,7 +230,7 @@ def get_jupyter_token(v1: client.CoreV1Api, pod_name: str, timeout: int = POD_TI
 
 def launch_jupyter_pod(pod_config: PodConfig, **extra_info) -> Tuple[Optional[str], Optional[str]]:
     """Generic function to launch a Jupyter pod with given configuration"""
-    config.load_kube_config()
+    load_kubernetes_config()
     v1 = client.CoreV1Api()
 
     # Find available GPU node

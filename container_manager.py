@@ -383,7 +383,7 @@ def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path
 
     extra_info = {
         "repo": f"{owner}/{repo}",
-        "notebook_path": notebook_filename
+        "notebook_path": shlex.quote(notebook_filename)
     }
 
     return launch_jupyter_pod(pod_config, **extra_info)

@@ -360,21 +360,15 @@ def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path
     pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
     github_url = f"https://github.com/{owner}/{repo}.git"
 
-    notebook_filename = notebook_path.split('/')[-1]
 
-    import shlex
     startup_command = (
         f"pip install --no-cache-dir jupyter ihighlight && "
-        f"mkdir -p /workspace && "
-        f"git clone -b {branch} {github_url} /tmp/{repo} && "
-        f"cp /tmp/{repo}/{shlex.quote(notebook_path)} /workspace/{shlex.quote(notebook_filename)} && "
-        f"rm -rf /tmp/{repo} && "
-        f"cd /workspace && "
+        f"git clone -b {branch} {github_url} /workspace/{repo} && "
+        f"cd /workspace/{repo} && "
         f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
+        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
         f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
     )
-    # import shlex
-    # startup_command = shlex.quote(startup_command)
 
     pod_config = PodConfig(
         name=pod_name,
@@ -383,10 +377,41 @@ def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path
 
     extra_info = {
         "repo": f"{owner}/{repo}",
-        "notebook_path": shlex.quote(notebook_filename)
+        "notebook_path": notebook_path
     }
 
     return launch_jupyter_pod(pod_config, **extra_info)
+
+def start_pod_with_single_notebook(owner: str, repo: str, branch: str, notebook_path: str) -> Tuple[Optional[str], Optional[str]]:
+    """Start a pod with only the specified notebook file from GitHub and open it in Jupyter Lab"""
+    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
+    raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{notebook_path}"
+    notebook_filename = notebook_path.split("/")[-1]
+
+    startup_command = (
+        f"pip install --no-cache-dir jupyter ihighlight && "
+        f"mkdir -p /workspace && "
+        f"curl -L {raw_url} -o /workspace/{notebook_filename} && "
+        f"cd /workspace && "
+        f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
+        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
+        f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True "
+        f"--NotebookApp.default_url=/lab/tree/{notebook_filename}"
+    )
+
+    pod_config = PodConfig(
+        name=pod_name,
+        startup_command=startup_command
+    )
+
+    extra_info = {
+        "repo": f"{owner}/{repo}",
+        "notebook_path": notebook_filename
+    }
+
+    return launch_jupyter_pod(pod_config, **extra_info)
+
+
 
 # ---------- Main -------------------------------------------------------------------
 if __name__ == "__main__":

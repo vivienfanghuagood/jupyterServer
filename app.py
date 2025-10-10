@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from container_manager import start_pod_and_get_jupyter_url, start_pod_with_github_repo
+from container_manager import start_pod_and_get_jupyter_url, start_pod_with_github_repo, start_ip_pod_and_get_jupyter_url
 
 # ========== Configuration ==========
 class Config:
@@ -200,6 +200,13 @@ class ContainerLauncher:
         if jupyter_url:
             self.session_manager.update_session_url(email, jupyter_url, pod_name)
             self.session_manager.log_container_start(email)
+        
+    def launch_video_gen_container(self, email: str):
+        """Launch a container for the given email"""
+        pod_name, jupyter_url = start_ip_pod_and_get_jupyter_url()
+        if jupyter_url:
+            self.session_manager.update_session_url(email, jupyter_url, pod_name)
+            self.session_manager.log_container_start(email)
 
     def launch_github_container(self, session_id: str, owner: str, repo: str,
                                 branch: str, notebook_path: str):
@@ -289,6 +296,27 @@ async def launch(background_tasks: BackgroundTasks, request: Request):
 
     session_manager.create_session(email)
     background_tasks.add_task(container_launcher.launch_container, email)
+
+    return JSONResponse({
+        "message": "Pod is launching, please wait...",
+        "email": email
+    })
+
+@app.post("/video_gen_launch")
+async def launch(background_tasks: BackgroundTasks, request: Request):
+    """Launch a container for a user email"""
+    data = await request.json()
+    email = data.get("email")
+
+    if not email:
+        return JSONResponse({"error": "email required"}, status_code=400)
+
+    existing_url, _ = session_manager.get_session_url(email)
+    if existing_url:
+        return JSONResponse({"url": existing_url})
+
+    session_manager.create_session(email)
+    background_tasks.add_task(container_launcher.launch_video_gen_container, email)
 
     return JSONResponse({
         "message": "Pod is launching, please wait...",

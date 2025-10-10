@@ -1,0 +1,115 @@
+# ---
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: flask-jupyterserver-sa
+#   namespace: default
+---
+# Namespaced resources the app manages (pods/services/configmaps/secrets/pvcs/etc.)
+# kind: Role
+# apiVersion: rbac.authorization.k8s.io/v1
+# metadata:
+#   name: flask-jupyterserver-role
+#   namespace: default
+# rules:
+#   - apiGroups: [""]
+#     resources: ["pods", "pods/log", "pods/exec", "services", "endpoints", "configmaps", "secrets", "events", "persistentvolumeclaims"]
+#     verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
+#   - apiGroups: ["apps"]
+#     resources: ["replicasets"]
+#     verbs: ["get", "list", "watch"]
+#   - apiGroups: ["batch"]
+#     resources: ["jobs"]
+#     verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
+#   - apiGroups: ["networking.k8s.io"]
+#     resources: ["ingresses"]
+#     verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
+# ---
+# Bind namespaced permissions to the ServiceAccount
+# kind: RoleBinding
+# apiVersion: rbac.authorization.k8s.io/v1
+# metadata:
+#   name: flask-jupyterserver-rb
+#   namespace: default
+# subjects:
+#   - kind: ServiceAccount
+#     name: flask-jupyterserver-sa
+#     namespace: default
+# roleRef:
+#   kind: Role
+#   name: flask-jupyterserver-role
+#   apiGroup: rbac.authorization.k8s.io
+---
+# Cluster-wide read-only access to nodes (often needed to discover GPU nodes)
+# kind: ClusterRole
+# apiVersion: rbac.authorization.k8s.io/v1
+# metadata:
+#   name: flask-jupyterserver-nodes-ro
+# rules:
+#   - apiGroups: [""]
+#     resources: ["nodes"]
+#     verbs: ["get", "list", "watch"]
+# ---
+# kind: ClusterRoleBinding
+# apiVersion: rbac.authorization.k8s.io/v1
+# metadata:
+#   name: flask-jupyterserver-nodes-ro-binding
+# subjects:
+#   - kind: ServiceAccount
+#     name: flask-jupyterserver-sa
+#     namespace: default
+# roleRef:
+#   kind: ClusterRole
+#   name: flask-jupyterserver-nodes-ro
+#   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-jupyterserver
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-jupyterserver
+  template:
+    metadata:
+      labels:
+        app: flask-jupyterserver
+    spec:
+      serviceAccountName: flask-jupyterserver-sa
+      restartPolicy: Always
+      tolerations:
+        - key: "amd.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: flask-container
+          image: python:3.12-slim
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              apt update && apt install -y --no-install-recommends git curl gcc python3-dev libffi-dev libssl-dev && \
+              rm -rf /var/lib/apt/lists/* && \
+              git clone https://github.com/indianspeedster/jupyterServer.git && \
+              cd jupyterServer && \
+              git checkout china_work_shop && \
+              pip install --upgrade pip && \
+              pip install -r requirements.txt && \
+              # Use in-cluster auth (python k8s client should call load_incluster_config)
+              uvicorn app:app --workers 4 --host 0.0.0.0 --port 5000
+          ports:
+            - containerPort: 5000
+          env:
+            - name: POSTGRES_HOST
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "flaskdb"
+            - name: POSTGRES_USER
+              value: "flaskuser"
+            - name: POSTGRES_PASSWORD
+              value: "flaskpass"
+            - name: DEFAULT_IMAGE
+              value: "vivienfanghua/amd_tutorial:unsloth"

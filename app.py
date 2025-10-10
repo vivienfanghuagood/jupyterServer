@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from container_manager import start_pod_and_get_jupyter_url, start_pod_with_github_repo, start_ip_pod_and_get_jupyter_url
+from container_manager import start_pod_and_get_jupyter_url, start_pod_with_github_repo, start_ip_pod_and_get_jupyter_url, start_pod_with_single_notebook
 
 # ========== Configuration ==========
 class Config:
@@ -225,7 +225,7 @@ class ContainerLauncher:
 
         try:
             # Launch the container
-            pod_name, jupyter_url = start_pod_with_github_repo(
+            pod_name, jupyter_url = start_pod_with_single_notebook(
                 owner=owner,
                 repo=repo,
                 branch=branch,
@@ -366,7 +366,7 @@ async def launch_github_post(request: Request):
         }, status_code=400)
 
     # Launch container with GitHub repo
-    pod_name, jupyter_url = start_pod_with_github_repo(**repo_info)
+    pod_name, jupyter_url = start_pod_with_single_notebook(**repo_info)
 
     if jupyter_url and jupyter_url != "/no_gpu":
         return JSONResponse({

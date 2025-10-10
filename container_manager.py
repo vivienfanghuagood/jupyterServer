@@ -372,6 +372,8 @@ def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path
         f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
         f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
     )
+    import shlex
+    startup_command = shlex.quote(startup_command)
 
     pod_config = PodConfig(
         name=pod_name,

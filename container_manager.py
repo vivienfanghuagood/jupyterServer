@@ -360,14 +360,27 @@ def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path
     pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
     github_url = f"https://github.com/{owner}/{repo}.git"
 
+    notebook_filename = notebook_path.split('/')[-1]
+
     startup_command = (
         f"pip install --no-cache-dir jupyter ihighlight && "
-        f"git clone -b {branch} {github_url} /workspace/{repo} && "
-        f"cd /workspace/{repo} && "
+        f"mkdir -p /workspace && "
+        f"git clone -b {branch} {github_url} /tmp/{repo} && "
+        f"cp /tmp/{repo}/{notebook_path} /workspace/{notebook_filename} && "
+        f"rm -rf /tmp/{repo} && "
+        f"cd /workspace && "
         f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
-        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
         f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
     )
+
+    # startup_command = (
+    #     f"pip install --no-cache-dir jupyter ihighlight && "
+    #     f"git clone -b {branch} {github_url} /workspace/{repo} && "
+    #     f"cd /workspace/{repo} && "
+    #     f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
+    #     f"--ServerApp.base_url=/jupyter/{pod_name}/ "
+    #     f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
+    # )
 
     pod_config = PodConfig(
         name=pod_name,

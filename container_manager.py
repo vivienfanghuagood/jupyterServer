@@ -382,21 +382,25 @@ def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path
 
     return launch_jupyter_pod(pod_config, **extra_info)
 
+
 def start_pod_with_single_notebook(owner: str, repo: str, branch: str, notebook_path: str) -> Tuple[Optional[str], Optional[str]]:
     """Start a pod with only the specified notebook file from GitHub and open it in Jupyter Lab"""
+
+    from urllib.parse import quote
     pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
-    raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{notebook_path}"
     notebook_filename = notebook_path.split("/")[-1]
+    encoded_filename = quote(notebook_filename)
+    raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{notebook_path}"
 
     startup_command = (
         f"pip install --no-cache-dir jupyter ihighlight && "
         f"mkdir -p /workspace && "
-        f"curl -L {raw_url} -o /workspace/{notebook_filename} && "
+        f"curl -L '{raw_url}' -o /workspace/{notebook_filename} && "
         f"cd /workspace && "
         f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
         f"--ServerApp.base_url=/jupyter/{pod_name}/ "
         f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True "
-        f"--NotebookApp.default_url=/lab/tree/{notebook_filename}"
+        f"--NotebookApp.default_url=/lab/tree/{encoded_filename}"
     )
 
     pod_config = PodConfig(
@@ -406,10 +410,12 @@ def start_pod_with_single_notebook(owner: str, repo: str, branch: str, notebook_
 
     extra_info = {
         "repo": f"{owner}/{repo}",
-        "notebook_path": notebook_filename
+        "notebook_path": notebook_path,
+        "notebook_url": f"/jupyter/{pod_name}/lab/tree/{encoded_filename}"
     }
 
     return launch_jupyter_pod(pod_config, **extra_info)
+
 
 
 

@@ -362,18 +362,19 @@ def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path
 
     notebook_filename = notebook_path.split('/')[-1]
 
+    import shlex
     startup_command = (
         f"pip install --no-cache-dir jupyter ihighlight && "
         f"mkdir -p /workspace && "
         f"git clone -b {branch} {github_url} /tmp/{repo} && "
-        f"cp /tmp/{repo}/{notebook_path} /workspace/{notebook_filename} && "
+        f"cp /tmp/{repo}/{shlex.quote(notebook_path)} /workspace/{shlex.quote(notebook_filename)} && "
         f"rm -rf /tmp/{repo} && "
         f"cd /workspace && "
         f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
         f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
     )
-    import shlex
-    startup_command = shlex.quote(startup_command)
+    # import shlex
+    # startup_command = shlex.quote(startup_command)
 
     pod_config = PodConfig(
         name=pod_name,

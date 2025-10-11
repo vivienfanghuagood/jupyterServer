@@ -194,31 +194,6 @@ def create_service(pod_name: str, container_port: int) -> client.V1Service:
         ),
     )
 
-def create_service_with_another_port(pod_name: str, container_port: int) -> client.V1Service:
-    """Create a NodePort service for the pod"""
-    service_name = f"{pod_name}-svc"
-    return client.V1Service(
-        metadata=client.V1ObjectMeta(name=service_name),
-        spec=client.V1ServiceSpec(
-            type="NodePort",
-            selector={"name": pod_name},
-            ports=[
-                client.V1ServicePort(
-                    name="jupyter",
-                    port=container_port,
-                    target_port=container_port,
-                    protocol="TCP",
-                ),
-                client.V1ServicePort(
-                    name="another",
-                    port=8188,
-                    target_port=8188,
-                    protocol="TCP",
-                )
-            ],
-        ),
-    )
-
 def wait_for_pod_ready(v1: client.CoreV1Api, pod_name: str, timeout: int = POD_TIMEOUT) -> bool:
     """Wait for a pod to be ready"""
     start = time.time()
@@ -281,10 +256,7 @@ def launch_jupyter_pod(pod_config: PodConfig, **extra_info) -> Tuple[Optional[st
     )
 
     # Create service
-    if "need_ip_port" in extra_info:
-        service = create_service_with_another_port(pod_config.name, pod_config.container_port)
-    else:
-        service = create_service(pod_config.name, pod_config.container_port)
+    service = create_service(pod_config.name, pod_config.container_port)
     service = v1.create_namespaced_service(namespace="default", body=service)
     node_port = service.spec.ports[0].node_port
     print(f"NodePort service created on port {node_port}.")
@@ -296,9 +268,7 @@ def launch_jupyter_pod(pod_config: PodConfig, **extra_info) -> Tuple[Optional[st
         return pod_config.name, None
 
     # Build URL based on extra_info
-    if "need_ip_port" in extra_info:
-        url = f"http://129.212.179.141:{node_port}/jupyter/{pod_config.name}/lab/tree/austin_ws/austin_multi-agent.ipynb?token={token}"
-    elif "notebook_path" in extra_info:
+    if "notebook_path" in extra_info:
         url = f"http://oneclickamd.ai/jupyter/{pod_config.name}/lab/tree/{extra_info['notebook_path']}?token={token}"
     else:
         # Default path for existing workshop
@@ -331,29 +301,6 @@ def start_pod_and_get_jupyter_url() -> Tuple[Optional[str], Optional[str]]:
     )
 
     return launch_jupyter_pod(pod_config)
-
-def start_ip_pod_and_get_jupyter_url() -> Tuple[Optional[str], Optional[str]]:
-    """Start a pod with the default AMD GPU workshop"""
-    pod_name = f"jupyter-launcher-{random.randint(1000,9999)}"
-    startup_command = (
-        "pip install --no-cache-dir jupyter ihighlight && "
-        "git clone https://github.com/Mahdi-CV/amd-gpu-workshops && "
-        "cd amd-gpu-workshops && cd notebooks && "
-        f"jupyter lab --ip=0.0.0.0 --port={CONTAINER_PORT} --allow-root "
-        f"--ServerApp.base_url=/jupyter/{pod_name}/ "
-        f"--ServerApp.open_browser=False --ServerApp.trust_xheaders=True"
-    )
-
-    pod_config = PodConfig(
-        name=pod_name,
-        startup_command=startup_command
-    )
-
-    extra_info = {
-        "need_ip_port": True
-    }
-
-    return launch_jupyter_pod(pod_config, **extra_info)
 
 def start_pod_with_github_repo(owner: str, repo: str, branch: str, notebook_path: str) -> Tuple[Optional[str], Optional[str]]:
     """Start a pod with a specific GitHub repository cloned and open the specified notebook"""

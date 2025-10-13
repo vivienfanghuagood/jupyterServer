@@ -297,7 +297,8 @@ def start_pod_and_get_jupyter_url() -> Tuple[Optional[str], Optional[str]]:
 
     pod_config = PodConfig(
         name=pod_name,
-        startup_command=startup_command
+        startup_command=startup_command,
+        image="rocm/7.0-preview:rocm7.0_preview_ubuntu_22.04_vllm_0.10.1_instinct_rc1"
     )
 
     return launch_jupyter_pod(pod_config)

@@ -22,7 +22,7 @@ function startProcess() {
 
     // Start the container launch process
     let userEmail = email;
-    fetch('/video_gen_launch', {
+    fetch('/launch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

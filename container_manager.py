@@ -342,7 +342,7 @@ def start_pod_with_single_notebook(owner: str, repo: str, branch: str, notebook_
 
     
     startup_command = (
-        f"pip install --no-cache-dir jupyter ihighlight ipywidgets==8.1.7 ipykernel==6.30.1 seqeval==1.2.2 sacrebleu==2.5.1"
+        f"pip install --no-cache-dir jupyter ihighlight ipywidgets==8.1.7 ipykernel==6.30.1 seqeval==1.2.2 sacrebleu==2.5.1 && "
         f"mkdir -p /workspace && "
         f"curl -L '{raw_url}' -o \"/workspace/{notebook_filename}\" && "
         f"cd /workspace && "
